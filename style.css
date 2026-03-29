@@ -1,0 +1,370 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+body {
+  background: #1a1a2e;
+  overflow: hidden;
+  font-family: "Segoe UI", sans-serif;
+}
+#canvas {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+}
+
+/* ── HUD WRAPPER ── */
+#hud {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* ── SPEEDOMETER ── */
+/* speedometer widget hidden — speed now lives inside the mission panel */
+#speedometer {
+  display: none;
+}
+
+/* ── ZONE BADGE ── */
+#zone-badge {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.55);
+  border: 1.5px solid rgba(255, 255, 255, 0.18);
+  border-radius: 30px;
+  padding: 8px 22px;
+  color: white;
+  font-size: 13px;
+  letter-spacing: 1px;
+  backdrop-filter: blur(8px);
+  transition: opacity 0.5s;
+  white-space: nowrap;
+}
+
+/* ── MINIMAP ── */
+#minimap {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 160px;
+  height: 160px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.55);
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(8px);
+  overflow: hidden;
+}
+#minimap canvas {
+  width: 100%;
+  height: 100%;
+}
+
+/* ── CONTROLS HINT ── */
+#controls-hint {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 10px;
+  padding: 8px 18px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  backdrop-filter: blur(6px);
+}
+
+/* ── START SCREEN ── */
+#start-screen {
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(135deg, #0f1923 0%, #1a2a1a 50%, #0f1923 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  color: white;
+}
+#start-screen h1 {
+  font-size: 64px;
+  font-weight: 900;
+  letter-spacing: -2px;
+  background: linear-gradient(90deg, #7ef5a8, #4ecdc4, #7ef5a8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-size: 200%;
+  animation: shimmer 3s linear infinite;
+  margin-bottom: 8px;
+}
+@keyframes shimmer {
+  0% {
+    background-position: 0%;
+  }
+  100% {
+    background-position: 200%;
+  }
+}
+#start-screen p {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 15px;
+  margin-bottom: 40px;
+  letter-spacing: 1px;
+}
+#start-btn {
+  background: #7ef5a8;
+  color: #0a1a0f;
+  border: none;
+  padding: 16px 48px;
+  font-size: 18px;
+  font-weight: 700;
+  border-radius: 50px;
+  cursor: pointer;
+  letter-spacing: 1px;
+  transition:
+    transform 0.15s,
+    box-shadow 0.15s;
+  box-shadow: 0 0 40px rgba(126, 245, 168, 0.4);
+}
+#start-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 60px rgba(126, 245, 168, 0.6);
+}
+
+.zone-list {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 40px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.zone-pill {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  letter-spacing: 0.5px;
+}
+
+/* ── MISSION HUD ── */
+#mission-panel {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  background: rgba(0, 0, 0, 0.62);
+  border: 1.5px solid rgba(255, 255, 255, 0.14);
+  border-radius: 16px;
+  padding: 14px 20px;
+  color: white;
+  min-width: 210px;
+  backdrop-filter: blur(10px);
+  pointer-events: none;
+}
+#mission-panel .mission-title {
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+  margin-bottom: 8px;
+}
+#mission-objective {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 10px;
+  line-height: 1.35;
+}
+#mission-row {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-top: 4px;
+}
+#mission-row > div {
+  flex: 1;
+  text-align: center;
+}
+
+#mission-timer {
+  font-size: 28px;
+  font-weight: 700;
+  color: #7ef5a8;
+  letter-spacing: 1px;
+  line-height: 1;
+}
+#mission-timer.urgent {
+  color: #ff6b6b;
+  animation: pulse 0.6s ease-in-out infinite alternate;
+}
+.mission-sub {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.4);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin-top: 3px;
+}
+
+@keyframes pulse {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.5;
+  }
+}
+
+#mission-dist {
+  font-size: 28px;
+  font-weight: 700;
+  color: #7eb8f5;
+  letter-spacing: 1px;
+  line-height: 1;
+}
+#mission-panel #speed-display {
+  font-size: 28px;
+  font-weight: 700;
+  color: #f5d07e;
+  letter-spacing: 1px;
+  line-height: 1;
+}
+#mission-steps {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.step-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
+  transition: all 0.3s;
+}
+.step-dot.done {
+  background: #7ef5a8;
+  border-color: #7ef5a8;
+}
+.step-dot.active {
+  background: transparent;
+  border-color: #7ef5a8;
+  box-shadow: 0 0 8px #7ef5a8;
+  animation: pulse 0.8s ease-in-out infinite alternate;
+}
+
+/* ── WIN SCREEN ── */
+#win-screen {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.75);
+  z-index: 200;
+  backdrop-filter: blur(6px);
+}
+#win-screen.show {
+  display: flex;
+}
+#win-card {
+  background: linear-gradient(135deg, #0f2a1a 0%, #0a1a2a 100%);
+  border: 2px solid rgba(126, 245, 168, 0.35);
+  border-radius: 24px;
+  padding: 48px 56px;
+  text-align: center;
+  color: white;
+  max-width: 460px;
+  animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+@keyframes popIn {
+  from {
+    transform: scale(0.7);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+#win-card .trophy {
+  font-size: 64px;
+  margin-bottom: 16px;
+}
+#win-card h2 {
+  font-size: 36px;
+  font-weight: 900;
+  letter-spacing: -1px;
+  background: linear-gradient(90deg, #7ef5a8, #4ecdc4);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 8px;
+}
+#win-card .win-time {
+  font-size: 48px;
+  font-weight: 700;
+  color: #7ef5a8;
+  margin: 16px 0;
+  letter-spacing: 2px;
+}
+#win-card .win-label {
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: rgba(255, 255, 255, 0.4);
+  text-transform: uppercase;
+  margin-bottom: 32px;
+}
+#win-card .win-stops {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.55);
+  margin-bottom: 32px;
+}
+.win-btn {
+  background: #7ef5a8;
+  color: #0a1a0f;
+  border: none;
+  padding: 14px 36px;
+  font-size: 15px;
+  font-weight: 700;
+  border-radius: 50px;
+  cursor: pointer;
+  margin: 0 8px;
+  letter-spacing: 0.5px;
+  transition:
+    transform 0.15s,
+    box-shadow 0.15s;
+  pointer-events: all;
+}
+.win-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 30px rgba(126, 245, 168, 0.5);
+}
+.win-btn.secondary {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+.win-btn.secondary:hover {
+  background: rgba(255, 255, 255, 0.18);
+  box-shadow: none;
+}
+
+/* ── CHECKPOINT FLASH ── */
+#cp-flash {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 150;
+  background: rgba(126, 245, 168, 0.18);
+  opacity: 0;
+  transition: opacity 0.08s;
+}
+#cp-flash.flash {
+  opacity: 1;
+}

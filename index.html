@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Open Mind</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <!-- ── START SCREEN ── -->
+    <div id="start-screen">
+      <h1>OPEN MIND</h1>
+      <p>LOW-POLY DRIVING · ROBLOX-STYLE OPEN WORLD</p>
+      <button id="start-btn" onclick="startGame()">START DRIVING</button>
+      <p style="margin-top: 20px; font-size: 12px">
+        WASD or Arrow Keys · Hold Shift to boost
+      </p>
+    </div>
+
+    <!-- ── 3D CANVAS ── -->
+    <canvas id="canvas"></canvas>
+
+    <!-- ── HUD ── -->
+    <div id="hud" style="display: none">
+      <div id="zone-badge">🌿 Grassy Fields</div>
+
+      <div id="minimap">
+        <canvas id="minimap-canvas" width="160" height="160"></canvas>
+      </div>
+
+      <div id="controls-hint">WASD / Arrows · Shift = Boost · R = Reset</div>
+
+      <div id="mission-panel">
+        <div class="mission-title">Mission</div>
+        <div id="mission-steps">
+          <div class="step-dot active" id="dot-0"></div>
+          <div class="step-dot" id="dot-1"></div>
+          <div class="step-dot" id="dot-2"></div>
+        </div>
+        <div id="mission-objective">
+          Drive to the <strong>Gas Station</strong>
+        </div>
+        <div id="mission-row">
+          <div>
+            <div id="mission-timer">0:00</div>
+            <div class="mission-sub">time</div>
+          </div>
+          <div>
+            <div id="speed-display">0</div>
+            <div class="mission-sub">km/h</div>
+          </div>
+          <div>
+            <div id="mission-dist">—</div>
+            <div class="mission-sub">metres away</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── CHECKPOINT FLASH ── -->
+    <div id="cp-flash"></div>
+
+    <!-- ── WIN SCREEN ── -->
+    <div id="win-screen">
+      <div id="win-card">
+        <div class="trophy">🏆</div>
+        <h2>MISSION COMPLETE</h2>
+        <div class="win-stops" id="win-stops">
+          Gas Station → Downtown → Waterfront
+        </div>
+        <div class="win-time" id="win-time">0:00</div>
+        <div class="win-label">Total Time</div>
+        <div>
+          <button class="win-btn" onclick="restartMission()">Play Again</button>
+          <button class="win-btn secondary" onclick="freeRoam()">
+            Free Roam
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Three.js library (must load before sketch.js) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <!-- Main game code -->
+    <script src="sketch.js"></script>
+  </body>
+</html>
