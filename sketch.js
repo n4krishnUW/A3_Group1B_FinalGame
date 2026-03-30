@@ -1194,78 +1194,207 @@ function resetCar() {
 function drawMinimap() {
   var mc = document.getElementById("minimap-canvas");
   var ctx = mc.getContext("2d");
-  var W = 160,
-    H = 160,
-    SCALE = 0.6,
-    CX = W / 2,
-    CY = H / 2;
+  // Map covers world coords -100 to +100 on both axes → 200 world units
+  // Canvas is 200×200 for sharper rendering (CSS still scales to 160×160)
+  mc.width = 200;
+  mc.height = 200;
+  var W = 200,
+    H = 200;
+  // Scale + offset so world (0,0) = canvas centre
+  var S = W / 210; // ~0.95 px per world unit — world spans ±105
+  function wx(x) {
+    return W / 2 + x * S;
+  }
+  function wz(z) {
+    return H / 2 - z * S;
+  }
 
-  ctx.clearRect(0, 0, W, H);
-  ctx.fillStyle = "#1a2a1a";
+  // ── Background ──
+  ctx.fillStyle = "#111a11";
   ctx.fillRect(0, 0, W, H);
 
-  // Zone colour circles
-  var zoneColors = {
-    "🌿 Grassy Fields": "#3a6a2a",
-    "🏙️ Downtown": "#334466",
-    "⛰️ Rocky Hills": "#554433",
-    "⛽ Industrial Strip": "#443322",
-    "🌉 Waterfront": "#224455",
-  };
-  ZONES.forEach(function (z) {
-    var sx = CX + z.cx * SCALE,
-      sy = CY + z.cz * SCALE;
-    ctx.beginPath();
-    ctx.arc(sx, sy, z.r * SCALE, 0, Math.PI * 2);
-    ctx.fillStyle = zoneColors[z.name] || "#333";
-    ctx.fill();
+  // ── Zone fills (flat coloured rectangles matching each zone's rough footprint) ──
+  var zones = [
+    { x: -70, z: -70, w: 110, h: 110, color: "#1e3a1a" }, // Grassy Fields NW
+    { x: 25, z: -90, w: 95, h: 100, color: "#2a2218" }, // Rocky Hills NE
+    { x: -20, z: -20, w: 80, h: 80, color: "#192233" }, // Downtown centre
+    { x: -125, z: 15, w: 110, h: 110, color: "#221c10" }, // Industrial SW
+    { x: 35, z: 20, w: 110, h: 110, color: "#112233" }, // Waterfront SE
+  ];
+  zones.forEach(function (z) {
+    ctx.fillStyle = z.color;
+    // With Z flipped, world top (z.z) maps to canvas bottom, so use wz(z.z + z.h) as canvas top
+    ctx.fillRect(wx(z.x), wz(z.z + z.h), z.w * S, z.h * S);
   });
 
-  // Simplified road lines
-  ctx.strokeStyle = "#555";
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.moveTo(CX, CY - 72);
-  ctx.lineTo(CX, CY + 72);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(CX - 72, CY);
-  ctx.lineTo(CX + 72, CY);
-  ctx.stroke();
-  ctx.strokeRect(CX - 50, CY - 50, 100, 100);
+  // ── Water patch (Waterfront) ──
+  ctx.fillStyle = "#1a3a4a";
+  ctx.fillRect(wx(55), wz(65 + 45), 70 * S, 45 * S);
 
-  // Checkpoint markers
-  CHECKPOINTS.forEach(function (cp, i) {
-    if (i < currentCP) return; // already collected
-    var mx = CX + cp.x * SCALE;
-    var mz = CY + cp.z * SCALE;
+  // ── Map boundary box ──
+  ctx.strokeStyle = "rgba(255,255,255,0.12)";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(wx(-100), wz(100), 200 * S, 200 * S);
+
+  // Helper: draw one road segment as a filled rect on the minimap
+  // Matches the road() call signature: centre x/z, width w, length len, rotation ry
+  function mroad(x, z, w, len, ry) {
+    ry = ry || 0;
+    ctx.save();
+    ctx.translate(wx(x), wz(z));
+    ctx.rotate(-ry);
+    // Main tarmac
+    ctx.fillStyle = "#3a3a3a";
+    ctx.fillRect((-len * S) / 2, (-w * S) / 2, len * S, w * S);
+    // Centre dash line
+    ctx.fillStyle = "rgba(220,210,120,0.35)";
+    ctx.fillRect((-len * S) / 2, -0.4, len * S, 0.8);
+    ctx.restore();
+  }
+
+  // ── Draw every road in the network (mirrors buildRoadNetwork exactly) ──
+  // Main cross
+  mroad(0, 0, 9, 240);
+  mroad(0, 0, 9, 240, Math.PI / 2);
+  // Outer ring
+  mroad(-85, 0, 9, 170);
+  mroad(85, 0, 9, 170);
+  mroad(0, -85, 9, 170, Math.PI / 2);
+  mroad(0, 85, 9, 170, Math.PI / 2);
+  mroad(-85, -85, 9, 9);
+  mroad(85, -85, 9, 9);
+  mroad(-85, 85, 9, 9);
+  mroad(85, 85, 9, 9);
+  // Original shortcuts
+  mroad(-42, -42, 7, 80, Math.PI / 4);
+  mroad(42, 42, 7, 80, Math.PI / 4);
+  mroad(-60, 0, 7, 60, Math.PI / 2);
+  mroad(60, 0, 7, 60, Math.PI / 2);
+  mroad(0, -60, 7, 60);
+  mroad(0, 60, 7, 60);
+  // Inner mid-ring
+  mroad(-42, 0, 7, 84);
+  mroad(42, 0, 7, 84);
+  mroad(0, -42, 7, 84, Math.PI / 2);
+  mroad(0, 42, 7, 84, Math.PI / 2);
+  mroad(-42, -42, 7, 9);
+  mroad(42, -42, 7, 9);
+  mroad(-42, 42, 7, 9);
+  mroad(42, 42, 7, 9);
+  // Gas Station spurs
+  mroad(-75, 55, 8, 36);
+  mroad(-75, 38, 8, 8, Math.PI / 2);
+  mroad(-75, 72, 8, 8, Math.PI / 2);
+  mroad(-58, 55, 7, 34, Math.PI / 2);
+  mroad(-42, 55, 7, 66, Math.PI / 2);
+  mroad(-42, 55, 7, 8);
+  // Downtown grid
+  mroad(0, -25, 8, 50, Math.PI / 2);
+  mroad(-22, -25, 7, 34);
+  mroad(22, -25, 7, 34);
+  mroad(0, -42, 7, 34, Math.PI / 2);
+  mroad(0, -8, 7, 34, Math.PI / 2);
+  mroad(-22, -8, 7, 8);
+  mroad(22, -8, 7, 8);
+  mroad(-22, -42, 7, 8);
+  mroad(22, -42, 7, 8);
+  // Waterfront roads
+  mroad(80, 70, 8, 40);
+  mroad(80, 52, 8, 8, Math.PI / 2);
+  mroad(80, 88, 8, 8, Math.PI / 2);
+  mroad(62, 70, 7, 36, Math.PI / 2);
+  mroad(62, 52, 7, 8);
+  mroad(62, 88, 7, 8);
+  mroad(42, 70, 7, 36, Math.PI / 2);
+  // Cross-map connectors
+  mroad(-42, 28, 7, 54, Math.PI / 2);
+  mroad(-22, 28, 7, 8, Math.PI / 2);
+  mroad(0, 28, 7, 8, Math.PI / 2);
+  mroad(42, -25, 7, 84, Math.PI / 2);
+  mroad(62, -25, 7, 84, Math.PI / 2);
+  mroad(42, 0, 7, 50, Math.PI / 2);
+  mroad(-17, 70, 7, 194, Math.PI / 2);
+  mroad(22, 70, 7, 40, Math.PI / 2);
+  mroad(-17, 85, 7, 136, Math.PI / 2);
+  // Rocky Hills roads
+  mroad(85, -42, 7, 86, Math.PI / 2);
+  mroad(62, -62, 7, 46, Math.PI / 2);
+  mroad(62, -85, 7, 8);
+  // Grassy Fields roads
+  mroad(-62, -62, 7, 46, Math.PI / 2);
+  mroad(-85, -62, 7, 8, Math.PI / 2);
+  mroad(-62, -85, 7, 8);
+  // Diagonals
+  mroad(-42, 42, 7, 80, Math.PI / 4);
+  mroad(42, -42, 7, 80, Math.PI / 4);
+  mroad(42, 42, 7, 80, Math.PI / 4);
+  mroad(-42, -42, 7, 80, Math.PI / 4);
+
+  // ── Active checkpoint marker — pulsing ring ──
+  if (missionActive && !missionComplete) {
+    var cp = CHECKPOINTS[currentCP];
+    var pulse = 0.55 + 0.45 * Math.abs(Math.sin(Date.now() * 0.003));
     ctx.beginPath();
-    ctx.arc(mx, mz, i === currentCP ? 6 : 4, 0, Math.PI * 2);
-    ctx.fillStyle = i === currentCP ? "#7ef5a8" : "rgba(126,245,168,0.35)";
+    ctx.arc(wx(cp.x), wz(cp.z), 7 * pulse, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(126,245,168,0.25)";
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(wx(cp.x), wz(cp.z), 5, 0, Math.PI * 2);
+    ctx.fillStyle = "#7ef5a8";
     ctx.fill();
     ctx.strokeStyle = "#fff";
     ctx.lineWidth = 1;
     ctx.stroke();
+    // Letter label
     ctx.fillStyle = "#000";
-    ctx.font = "bold 7px sans-serif";
+    ctx.font = "bold 6px sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText(String.fromCharCode(65 + i), mx, mz + 2.5);
-  });
+    ctx.textBaseline = "middle";
+    ctx.fillText(String.fromCharCode(65 + currentCP), wx(cp.x), wz(cp.z));
+  }
 
-  // Player arrow
-  var cx2 = CX + car.position.x * SCALE;
-  var cy2 = CY + car.position.z * SCALE;
+  // ── Collected checkpoint tick marks ──
+  for (var ci = 0; ci < currentCP; ci++) {
+    var dcp = CHECKPOINTS[ci];
+    ctx.beginPath();
+    ctx.arc(wx(dcp.x), wz(dcp.z), 3, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(126,245,168,0.3)";
+    ctx.fill();
+  }
+
+  // ── Player arrow ──
+  var px = wx(car.position.x);
+  var pz = wz(car.position.z);
   ctx.save();
-  ctx.translate(cx2, cy2);
+  ctx.translate(px, pz);
   ctx.rotate(car.rotation.y);
+  // White halo
+  ctx.beginPath();
+  ctx.arc(0, 0, 5, 0, Math.PI * 2);
+  ctx.fillStyle = "rgba(255,255,255,0.2)";
+  ctx.fill();
+  // wz flips Z so +Z world = canvas UP. rotation.y=0 = facing +Z = tip points up (0,-7)
   ctx.fillStyle = "#ff4444";
   ctx.beginPath();
-  ctx.moveTo(0, -5);
-  ctx.lineTo(3, 3);
-  ctx.lineTo(-3, 3);
+  ctx.moveTo(0, -7);
+  ctx.lineTo(4, 4);
+  ctx.lineTo(-4, 4);
   ctx.closePath();
   ctx.fill();
+  ctx.strokeStyle = "#fff";
+  ctx.lineWidth = 0.8;
+  ctx.stroke();
   ctx.restore();
+
+  // ── Cardinal labels ──
+  ctx.fillStyle = "rgba(255,255,255,0.25)";
+  ctx.font = "7px sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("N", W / 2, 7);
+  ctx.fillText("S", W / 2, H - 7);
+  ctx.fillText("W", 7, H / 2);
+  ctx.fillText("E", W - 7, H / 2);
 }
 
 // ─── CAR PHYSICS ──────────────────────────────────────────────────────────────
@@ -1298,9 +1427,9 @@ function updateCar(dt) {
   car.position.z += Math.cos(carRotation) * carVelocity;
   car.position.y = 0.38; // keep on ground
 
-  // World boundary fence
-  car.position.x = Math.max(-140, Math.min(140, car.position.x));
-  car.position.z = Math.max(-140, Math.min(140, car.position.z));
+  // Hard boundary — matches the minimap border (world coords ±100)
+  car.position.x = Math.max(-100, Math.min(100, car.position.x));
+  car.position.z = Math.max(-100, Math.min(100, car.position.z));
 
   // Push car out of any solid object it has overlapped
   resolveCollisions();
