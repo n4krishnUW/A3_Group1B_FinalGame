@@ -83,10 +83,10 @@ function buildCheckpointMarkers() {
       emissiveIntensity: 0.6,
     });
     var pole = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.3, 0.3, 12, 8),
+      new THREE.CylinderGeometry(0.4, 0.4, 18, 8),
       poleMat,
     );
-    pole.position.y = 6;
+    pole.position.y = 9;
     group.add(pole);
 
     // Spinning diamond on top
@@ -96,10 +96,10 @@ function buildCheckpointMarkers() {
       emissiveIntensity: 0.9,
     });
     var diamond = new THREE.Mesh(
-      new THREE.OctahedronGeometry(2, 0),
+      new THREE.OctahedronGeometry(3.5, 0),
       diamondMat,
     );
-    diamond.position.y = 14;
+    diamond.position.y = 16;
     diamond.name = "diamond";
     group.add(diamond);
 
@@ -126,24 +126,21 @@ function buildCheckpointMarkers() {
 
 // Spin diamonds and manage beacon visibility — called every frame
 function updateMarkers(dt) {
-  markerRotation += dt * 1.2;
+  markerRotation += dt * 1.8;
   cpMarkers.forEach(function (group, i) {
-    var diamond = group.getObjectByName("diamond");
-    if (diamond) diamond.rotation.y = markerRotation;
-
-    if (i < currentCP) {
-      // Already collected — hide entirely
+    // Only show the current active destination — everything else hidden
+    if (i !== currentCP || !missionActive || missionComplete) {
       group.visible = false;
-    } else if (i === currentCP) {
-      // Active target — full brightness + gentle bob
-      group.visible = true;
-      if (diamond) diamond.position.y = 14 + Math.sin(markerRotation * 2) * 0.5;
-    } else {
-      // Future checkpoint — show faintly so player knows what's coming
-      group.visible = missionActive;
-      group.children.forEach(function (c) {
-        if (c.material) c.material.opacity = 0.3;
-      });
+      return;
+    }
+    group.visible = true;
+    var diamond = group.getObjectByName("diamond");
+    if (diamond) {
+      diamond.rotation.y = markerRotation;
+      // Bigger bob and scale pulse for maximum visibility
+      diamond.position.y = 14 + Math.sin(markerRotation * 2.5) * 1.2;
+      var pulse = 1 + Math.sin(markerRotation * 3) * 0.18;
+      diamond.scale.set(pulse, pulse, pulse);
     }
   });
 }
@@ -166,12 +163,9 @@ function beginMission() {
     }
   });
 
-  // Reset beacon opacity
+  // Only show the first checkpoint marker
   cpMarkers.forEach(function (g, i) {
-    g.visible = true;
-    g.children.forEach(function (c) {
-      if (c.material) c.material.opacity = i === 0 ? 1 : 0.3;
-    });
+    g.visible = i === 0;
   });
 }
 
@@ -530,7 +524,130 @@ function buildRoadNetwork() {
   road(0, -60, 7, 60);
   road(0, 60, 7, 60);
 
-  // Flat intersection pads
+  // ── Dense connecting road network ──────────────────────────────────────────
+
+  // ── Inner mid-ring: a second loop roughly halfway between centre and outer ring
+  road(-42, 0, 7, 84); // west mid N-S
+  road(42, 0, 7, 84); // east mid N-S
+  road(0, -42, 7, 84, Math.PI / 2); // north mid E-W
+  road(0, 42, 7, 84, Math.PI / 2); // south mid E-W
+  // mid-ring corners
+  road(-42, -42, 7, 9);
+  road(42, -42, 7, 9);
+  road(-42, 42, 7, 9);
+  road(42, 42, 7, 9);
+
+  // ── Gas Station (-75, 55): multiple approach roads ──
+  road(-75, 55, 8, 36); // main N-S spur
+  road(-75, 38, 8, 8, Math.PI / 2); // north junction
+  road(-75, 72, 8, 8, Math.PI / 2); // south junction
+  road(-58, 55, 7, 34, Math.PI / 2); // E-W street beside station
+  road(-42, 55, 7, 66, Math.PI / 2); // long E-W link to mid-ring
+  road(-42, 55, 7, 8); // short N-S at that junction
+
+  // ── Downtown (0, -25): city street grid ──
+  road(0, -25, 8, 50, Math.PI / 2); // main E-W through downtown
+  road(-22, -25, 7, 34); // west parallel N-S
+  road(22, -25, 7, 34); // east parallel N-S
+  road(0, -42, 7, 34, Math.PI / 2); // north parallel E-W
+  road(0, -8, 7, 34, Math.PI / 2); // south parallel E-W (links to centre)
+  road(-22, -8, 7, 8); // NW corner spur
+  road(22, -8, 7, 8); // NE corner spur
+  road(-22, -42, 7, 8); // SW corner spur
+  road(22, -42, 7, 8); // SE corner spur
+
+  // ── Waterfront (80, 70): coastal road network ──
+  road(80, 70, 8, 40); // main N-S coastal road
+  road(80, 52, 8, 8, Math.PI / 2); // north dock junction
+  road(80, 88, 8, 8, Math.PI / 2); // south dock junction
+  road(62, 70, 7, 36, Math.PI / 2); // west coastal parallel
+  road(62, 52, 7, 8); // NW corner
+  road(62, 88, 7, 8); // SW corner
+  road(42, 70, 7, 36, Math.PI / 2); // further west E-W (links to mid-ring)
+
+  // ── Cross-map connectors: joining all zones together ──
+  // Gas Station ↔ Downtown (south-west to centre)
+  road(-42, 28, 7, 54, Math.PI / 2); // mid-left N-S bridge
+  road(-22, 28, 7, 8, Math.PI / 2);
+  road(0, 28, 7, 8, Math.PI / 2);
+
+  // Downtown ↔ Waterfront (centre to east)
+  road(42, -25, 7, 84, Math.PI / 2); // long east E-W from downtown to waterfront lat
+  road(62, -25, 7, 84, Math.PI / 2); // parallel one block further east
+  road(42, 0, 7, 50, Math.PI / 2); // mid-east connector
+
+  // Gas Station ↔ Waterfront (south cross)
+  road(-17, 70, 7, 194, Math.PI / 2); // long southern E-W spine
+  road(22, 70, 7, 40, Math.PI / 2); // gap filler east of centre
+  road(-17, 85, 7, 136, Math.PI / 2); // second southern parallel
+
+  // Rocky Hills area (north-east): loop road
+  road(85, -42, 7, 86, Math.PI / 2); // east side N road into hills
+  road(62, -62, 7, 46, Math.PI / 2); // hills approach from west
+  road(62, -85, 7, 8); // corner at top
+
+  // Grassy Fields area (north-west): farm tracks
+  road(-62, -62, 7, 46, Math.PI / 2); // NW zone inner road
+  road(-85, -62, 7, 8, Math.PI / 2); // outer spur
+  road(-62, -85, 7, 8); // top connector
+
+  // ── Diagonal expressways ──
+  road(-42, 42, 7, 80, Math.PI / 4); // SW ↔ NE diagonal
+  road(42, -42, 7, 80, Math.PI / 4); // mirrored diagonal
+  road(42, 42, 7, 80, Math.PI / 4); // SE diagonal
+  road(-42, -42, 7, 80, Math.PI / 4); // NW diagonal
+
+  // ── Additional intersection pads at every new junction ──
+  [
+    // gas station approaches
+    [-75, 38],
+    [-75, 72],
+    [-58, 55],
+    [-42, 55],
+    // downtown grid
+    [-22, -25],
+    [22, -25],
+    [0, -42],
+    [0, -8],
+    [-22, -8],
+    [22, -8],
+    [-22, -42],
+    [22, -42],
+    // waterfront
+    [80, 52],
+    [80, 88],
+    [62, 70],
+    [62, 52],
+    [62, 88],
+    [42, 70],
+    // cross-map
+    [-42, 28],
+    [-17, 70],
+    [22, 70],
+    [-17, 85],
+    [42, -25],
+    [62, -25],
+    [42, 0],
+    // hills & fields
+    [85, -42],
+    [62, -62],
+    [62, -85],
+    [-62, -62],
+    [-85, -62],
+    [-62, -85],
+    // mid-ring corners
+    [-42, -42],
+    [42, -42],
+    [-42, 42],
+    [42, 42],
+  ].forEach(function (pos) {
+    var p = new THREE.Mesh(new THREE.BoxGeometry(13, 0.22, 13), roadMat);
+    p.position.set(pos[0], 0, pos[1]);
+    p.receiveShadow = true;
+    scene.add(p);
+  });
+
+  // Flat intersection pads (original)
   [
     [0, 0],
     [-85, 0],
