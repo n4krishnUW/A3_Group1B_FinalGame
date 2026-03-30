@@ -103,19 +103,20 @@ function buildCheckpointMarkers() {
     diamond.name = "diamond";
     group.add(diamond);
 
-    // Ground ring showing the trigger radius
+    // Ground ring showing the trigger radius — raised above road surface (road top = 0.24)
     var ringMat = new THREE.MeshLambertMaterial({
       color: cp.color,
       emissive: cp.color,
-      emissiveIntensity: 0.4,
+      emissiveIntensity: 0.5,
       transparent: true,
-      opacity: 0.55,
+      opacity: 0.7,
+      side: THREE.DoubleSide,
     });
     var ring = new THREE.Mesh(
-      new THREE.CylinderGeometry(cp.r, cp.r, 0.15, 24, 1, true),
+      new THREE.CylinderGeometry(cp.r, cp.r, 0.15, 32, 1, true),
       ringMat,
     );
-    ring.position.y = 0.08;
+    ring.position.y = 0.35; // sits visibly above road surface
     group.add(ring);
 
     group.position.set(cp.x, 0, cp.z);
@@ -373,7 +374,12 @@ function init() {
 // ─── GROUND ───────────────────────────────────────────────────────────────────
 function buildGround() {
   var geo = new THREE.PlaneGeometry(400, 400);
-  var mat = new THREE.MeshLambertMaterial({ color: 0x5a9e4a });
+  var mat = new THREE.MeshLambertMaterial({
+    color: 0x5a9e4a,
+    polygonOffset: true,
+    polygonOffsetFactor: 2,
+    polygonOffsetUnits: 2,
+  });
   var ground = new THREE.Mesh(geo, mat);
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
@@ -452,55 +458,59 @@ function cone(r, h, segs, color, x, y, z) {
 
 // ─── ROAD NETWORK ─────────────────────────────────────────────────────────────
 function buildRoadNetwork() {
-  var roadMat = new THREE.MeshLambertMaterial({ color: 0x3a3a3a });
-  var lineMat = new THREE.MeshLambertMaterial({ color: 0xeeeeaa });
-  var sideMat = new THREE.MeshLambertMaterial({ color: 0xcccccc });
+  var ROAD_TOP = 0.12;
+  var roadMat = new THREE.MeshLambertMaterial({ color: 0x444444 });
+  var lineMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
 
   function road(x, z, w, len, ry) {
     ry = ry === undefined ? 0 : ry;
+    var cos = Math.cos(ry),
+      sin = Math.sin(ry);
 
-    // Road surface
-    var r = new THREE.Mesh(new THREE.BoxGeometry(w, 0.22, len), roadMat);
-    r.position.set(x, 0, z);
-    r.rotation.y = ry;
-    r.receiveShadow = true;
-    scene.add(r);
+    // ── Road surface ─────────────────────────────────────────────────────
+    var surf = new THREE.Mesh(
+      new THREE.BoxGeometry(w, ROAD_TOP * 2, len),
+      roadMat,
+    );
+    surf.position.set(x, ROAD_TOP, z);
+    surf.rotation.y = ry;
+    surf.receiveShadow = true;
+    scene.add(surf);
 
-    // Curb strips along each side (visual only — h=0.28 stays below h>2 threshold)
-    [-1, 1].forEach(function (side) {
-      var curb = new THREE.Mesh(
-        new THREE.BoxGeometry(
-          ry === 0 ? w + 0.6 : 0.4,
-          0.28,
-          ry === 0 ? 0.4 : len + 0.6,
-        ),
-        sideMat,
-      );
-      if (ry !== 0) {
-        curb.position.set(x + side * (w / 2 + 0.2), 0, z);
-      } else {
-        curb.position.set(x, 0, z + side * (len / 2));
-      }
-      curb.receiveShadow = true;
-      scene.add(curb);
-    });
+    // ── Dashed centre line ───────────────────────────────────────────────
+    // Skip a clearance zone at each end so dashes never spill into intersections
+    var PAD_CLEAR = 9; // matches intersection pad size — no dashes this close to ends
+    var dashLen = 3;
+    var dashGap = 5;
+    var dashCycle = dashLen + dashGap;
+    var usable = len - PAD_CLEAR * 2; // drawable length, clear of both ends
+    if (usable < dashLen) return; // road too short for any dashes
 
-    // Dashed centre line (h=0.23 — purely visual, no collider)
-    var dashCount = Math.floor(len / 8);
-    for (var i = 0; i < dashCount; i++) {
+    var numDashes = Math.floor((usable + dashGap) / dashCycle);
+    var totalUsed = numDashes * dashCycle - dashGap;
+    var startOffset = -totalUsed / 2 + dashLen / 2; // centre dashes within usable zone
+
+    for (var i = 0; i < numDashes; i++) {
+      var along = startOffset + i * dashCycle;
       var dash = new THREE.Mesh(
-        new THREE.BoxGeometry(ry === 0 ? 0.25 : 2, 0.23, ry === 0 ? 2 : 0.25),
+        new THREE.BoxGeometry(0.3, 0.05, dashLen),
         lineMat,
       );
-      var offset = -len / 2 + 4 + i * 8;
-      dash.position.set(
-        x + (ry !== 0 ? offset * Math.sin(ry) : 0),
-        0,
-        z + (ry !== 0 ? offset * Math.cos(ry) : offset),
-      );
-      if (ry !== 0) dash.rotation.y = ry;
+      dash.position.set(x + along * sin, ROAD_TOP * 2 + 0.02, z + along * cos);
+      dash.rotation.y = ry;
       scene.add(dash);
     }
+  }
+
+  // ── Intersection pad — exact same height as road surface ────────────
+  function pad(x, z, size) {
+    var p = new THREE.Mesh(
+      new THREE.BoxGeometry(size, ROAD_TOP * 2, size),
+      roadMat,
+    );
+    p.position.set(x, ROAD_TOP, z);
+    p.receiveShadow = true;
+    scene.add(p);
   }
 
   // Main cross
@@ -524,153 +534,179 @@ function buildRoadNetwork() {
   road(0, -60, 7, 60);
   road(0, 60, 7, 60);
 
-  // ── Dense connecting road network ──────────────────────────────────────────
+  // ════════════════════════════════════════════════════════════════════
+  // ROAD NETWORK  — every road endpoint touches at least one other road.
+  // Convention:  road(centreX, centreZ, width, length, rotation)
+  //   ry = 0       → runs N-S  (along Z), endpoints at centreZ ± length/2
+  //   ry = PI/2    → runs E-W  (along X), endpoints at centreX ± length/2
+  // All coordinates verified so no floating disconnected stubs.
+  // ════════════════════════════════════════════════════════════════════
 
-  // ── Inner mid-ring: a second loop roughly halfway between centre and outer ring
-  road(-42, 0, 7, 84); // west mid N-S
-  road(42, 0, 7, 84); // east mid N-S
-  road(0, -42, 7, 84, Math.PI / 2); // north mid E-W
-  road(0, 42, 7, 84, Math.PI / 2); // south mid E-W
-  // mid-ring corners
-  road(-42, -42, 7, 9);
-  road(42, -42, 7, 9);
-  road(-42, 42, 7, 9);
-  road(42, 42, 7, 9);
+  // ── 1. OUTER RING  (forms the world boundary rectangle) ─────────────
+  //   N side:  z = -85, x = -85..85
+  //   S side:  z =  85, x = -85..85
+  //   W side:  x = -85, z = -85..85
+  //   E side:  x =  85, z = -85..85
+  road(0, -85, 9, 170, Math.PI / 2); // N outer E-W
+  road(0, 85, 9, 170, Math.PI / 2); // S outer E-W
+  road(-85, 0, 9, 170, 0); // W outer N-S
+  road(85, 0, 9, 170, 0); // E outer N-S
+  // corner pads handled below in intersection list
 
-  // ── Gas Station (-75, 55): multiple approach roads ──
-  road(-75, 55, 8, 36); // main N-S spur
-  road(-75, 38, 8, 8, Math.PI / 2); // north junction
-  road(-75, 72, 8, 8, Math.PI / 2); // south junction
-  road(-58, 55, 7, 34, Math.PI / 2); // E-W street beside station
-  road(-42, 55, 7, 66, Math.PI / 2); // long E-W link to mid-ring
-  road(-42, 55, 7, 8); // short N-S at that junction
+  // ── 2. MAIN CROSS  (x=0 N-S and z=0 E-W, full map width) ───────────
+  road(0, 0, 9, 170, 0); // main N-S  (z=-85..85)
+  road(0, 0, 9, 170, Math.PI / 2); // main E-W  (x=-85..85)
 
-  // ── Downtown (0, -25): city street grid ──
-  road(0, -25, 8, 50, Math.PI / 2); // main E-W through downtown
-  road(-22, -25, 7, 34); // west parallel N-S
-  road(22, -25, 7, 34); // east parallel N-S
-  road(0, -42, 7, 34, Math.PI / 2); // north parallel E-W
-  road(0, -8, 7, 34, Math.PI / 2); // south parallel E-W (links to centre)
-  road(-22, -8, 7, 8); // NW corner spur
-  road(22, -8, 7, 8); // NE corner spur
-  road(-22, -42, 7, 8); // SW corner spur
-  road(22, -42, 7, 8); // SE corner spur
+  // ── 3. INNER GRID  (x=±42 N-S, z=±42 E-W — connects outer to centre) ─
+  //   N-S at x=-42: z=-85..85  (full height, connects outer ring both ends)
+  road(-42, 0, 7, 170, 0); // inner W N-S
+  road(42, 0, 7, 170, 0); // inner E N-S
+  //   E-W at z=-42: x=-85..85
+  road(0, -42, 7, 170, Math.PI / 2); // inner N E-W
+  road(0, 42, 7, 170, Math.PI / 2); // inner S E-W
 
-  // ── Waterfront (80, 70): coastal road network ──
-  road(80, 70, 8, 40); // main N-S coastal road
-  road(80, 52, 8, 8, Math.PI / 2); // north dock junction
-  road(80, 88, 8, 8, Math.PI / 2); // south dock junction
-  road(62, 70, 7, 36, Math.PI / 2); // west coastal parallel
-  road(62, 52, 7, 8); // NW corner
-  road(62, 88, 7, 8); // SW corner
-  road(42, 70, 7, 36, Math.PI / 2); // further west E-W (links to mid-ring)
+  // ── 4. MID-LATITUDE EAST-WEST ROADS  (z=-62, z=62 — fills N/S gaps) ─
+  road(0, -62, 7, 170, Math.PI / 2); // z=-62 E-W (x=-85..85)
+  road(0, 62, 7, 170, Math.PI / 2); // z= 62 E-W (x=-85..85)
 
-  // ── Cross-map connectors: joining all zones together ──
-  // Gas Station ↔ Downtown (south-west to centre)
-  road(-42, 28, 7, 54, Math.PI / 2); // mid-left N-S bridge
-  road(-22, 28, 7, 8, Math.PI / 2);
-  road(0, 28, 7, 8, Math.PI / 2);
+  // ── 5. MID-LONGITUDE N-S ROADS  (x=-62, x=62 — fills E/W gaps) ─────
+  road(-62, 0, 7, 170, 0); // x=-62 N-S (z=-85..85)
+  road(62, 0, 7, 170, 0); // x= 62 N-S (z=-85..85)
 
-  // Downtown ↔ Waterfront (centre to east)
-  road(42, -25, 7, 84, Math.PI / 2); // long east E-W from downtown to waterfront lat
-  road(62, -25, 7, 84, Math.PI / 2); // parallel one block further east
-  road(42, 0, 7, 50, Math.PI / 2); // mid-east connector
+  // ── 6. GAS STATION APPROACH  (destination at -75, 55) ───────────────
+  //   x=-75 N-S from outer ring z=-85 down to z=85
+  road(-75, 0, 8, 170, 0); // x=-75 full N-S (hits outer ring at ±85)
+  //   E-W connector at z=55 from x=-85 to x=-62 (outer ring to x=-62 N-S)
+  road(-73, 55, 7, 24, Math.PI / 2); // z=55 short E-W stub: x=-85..x=-61 → ties x=-75 spur to x=-62
 
-  // Gas Station ↔ Waterfront (south cross)
-  road(-17, 70, 7, 194, Math.PI / 2); // long southern E-W spine
-  road(22, 70, 7, 40, Math.PI / 2); // gap filler east of centre
-  road(-17, 85, 7, 136, Math.PI / 2); // second southern parallel
+  // ── 7. WATERFRONT APPROACH  (destination at 80, 70) ─────────────────
+  //   x=80 N-S already covered by outer ring at x=85 and inner x=62
+  //   Add a dedicated spur: x=80, z=42..85 (connects inner S E-W to outer S)
+  road(80, 63, 7, 46, 0); // x=80 N-S: z=40..86 — ties z=42 inner to z=85 outer
+  //   E-W at z=70 from x=62 to x=85
+  road(73, 70, 7, 22, Math.PI / 2); // z=70 E-W: x=62..84 — connects x=62 N-S to waterfront
 
-  // Rocky Hills area (north-east): loop road
-  road(85, -42, 7, 86, Math.PI / 2); // east side N road into hills
-  road(62, -62, 7, 46, Math.PI / 2); // hills approach from west
-  road(62, -85, 7, 8); // corner at top
+  // ── 8. DOWNTOWN CROSS STREETS  (destination at 0, -25) ──────────────
+  //   x=-22 and x=22 N-S between z=-42 and z=0 (inner grid already at ±42 E-W and z=0 E-W)
+  road(-22, -21, 7, 42, 0); // x=-22 N-S: z=-42..0
+  road(22, -21, 7, 42, 0); // x= 22 N-S: z=-42..0
+  //   z=-25 E-W from x=-42 to x=42
+  road(0, -25, 7, 84, Math.PI / 2); // z=-25 E-W: x=-42..42
 
-  // Grassy Fields area (north-west): farm tracks
-  road(-62, -62, 7, 46, Math.PI / 2); // NW zone inner road
-  road(-85, -62, 7, 8, Math.PI / 2); // outer spur
-  road(-62, -85, 7, 8); // top connector
+  // ── 9. DIAGONALS  (expressways cutting across zones) ────────────────
+  //   These cut between grid intersections; pads at each end catch the gaps
+  road(-21, -21, 7, 80, Math.PI / 4); // NW diagonal (-42,-42 → 0,0 region)
+  road(21, 21, 7, 80, Math.PI / 4); // SE diagonal (0,0 → 42,42 region)
+  road(21, -21, 7, 80, -Math.PI / 4); // NE diagonal (0,-42 → 42,0 region)
+  road(-21, 21, 7, 80, -Math.PI / 4); // SW diagonal (-42,0 → 0,42 region)
 
-  // ── Diagonal expressways ──
-  road(-42, 42, 7, 80, Math.PI / 4); // SW ↔ NE diagonal
-  road(42, -42, 7, 80, Math.PI / 4); // mirrored diagonal
-  road(42, 42, 7, 80, Math.PI / 4); // SE diagonal
-  road(-42, -42, 7, 80, Math.PI / 4); // NW diagonal
-
-  // ── Additional intersection pads at every new junction ──
-  [
-    // gas station approaches
-    [-75, 38],
-    [-75, 72],
-    [-58, 55],
-    [-42, 55],
-    // downtown grid
-    [-22, -25],
-    [22, -25],
-    [0, -42],
-    [0, -8],
-    [-22, -8],
-    [22, -8],
-    [-22, -42],
-    [22, -42],
-    // waterfront
-    [80, 52],
-    [80, 88],
-    [62, 70],
-    [62, 52],
-    [62, 88],
-    [42, 70],
-    // cross-map
-    [-42, 28],
-    [-17, 70],
-    [22, 70],
-    [-17, 85],
-    [42, -25],
-    [62, -25],
-    [42, 0],
-    // hills & fields
-    [85, -42],
-    [62, -62],
-    [62, -85],
-    [-62, -62],
-    [-85, -62],
-    [-62, -85],
-    // mid-ring corners
-    [-42, -42],
-    [42, -42],
-    [-42, 42],
-    [42, 42],
-  ].forEach(function (pos) {
-    var p = new THREE.Mesh(new THREE.BoxGeometry(13, 0.22, 13), roadMat);
-    p.position.set(pos[0], 0, pos[1]);
-    p.receiveShadow = true;
-    scene.add(p);
-  });
-
-  // Flat intersection pads (original)
-  [
-    [0, 0],
-    [-85, 0],
-    [85, 0],
-    [0, -85],
-    [0, 85],
+  // ── 10. INTERSECTION PADS  (large flat squares at every grid crossing) ─
+  // Outer ring corners
+  var outerCorners = [
     [-85, -85],
     [85, -85],
     [-85, 85],
     [85, 85],
-  ].forEach(function (pos) {
-    var p = new THREE.Mesh(new THREE.BoxGeometry(18, 0.22, 18), roadMat);
-    p.position.set(pos[0], 0, pos[1]);
-    p.receiveShadow = true;
-    scene.add(p);
-  });
+  ];
+  // Main cross + outer ring junctions
+  var mainJunctions = [
+    [0, -85],
+    [0, 85],
+    [-85, 0],
+    [85, 0],
+    [0, 0],
+  ];
+  // Inner grid crossings (every combination of {-85,-62,-42,0,42,62,85} on both axes
+  // that actually has two roads crossing)
+  var innerJunctions = [
+    // x=-42 N-S crosses all E-W roads
+    [-42, -85],
+    [-42, -62],
+    [-42, -42],
+    [-42, 0],
+    [-42, 42],
+    [-42, 62],
+    [-42, 85],
+    // x=42 N-S crosses all E-W roads
+    [42, -85],
+    [42, -62],
+    [42, -42],
+    [42, 0],
+    [42, 42],
+    [42, 62],
+    [42, 85],
+    // x=-62 N-S crosses all E-W roads
+    [-62, -85],
+    [-62, -62],
+    [-62, -42],
+    [-62, 0],
+    [-62, 42],
+    [-62, 62],
+    [-62, 85],
+    // x=62 N-S crosses all E-W roads
+    [62, -85],
+    [62, -62],
+    [62, -42],
+    [62, 0],
+    [62, 42],
+    [62, 62],
+    [62, 85],
+    // main x=0 N-S crosses extra E-W roads
+    [0, -62],
+    [0, -42],
+    [0, 42],
+    [0, 62],
+    // x=-75 spur crosses E-W roads
+    [-75, -85],
+    [-75, -62],
+    [-75, -42],
+    [-75, 0],
+    [-75, 42],
+    [-75, 62],
+    [-75, 85],
+    // x=80 spur
+    [80, 42],
+    [80, 62],
+    [80, 85],
+    // downtown extras
+    [-22, -42],
+    [-22, 0],
+    [22, -42],
+    [22, 0],
+    [-22, -25],
+    [22, -25],
+    // waterfront junction
+    [73, 70],
+    [62, 70],
+    [80, 70],
+    // gas station junction
+    [-73, 55],
+    [-75, 55],
+    // diagonal endpoints (approx)
+    [-42, -42],
+    [42, 42],
+    [42, -42],
+    [-42, 42],
+  ];
+
+  outerCorners
+    .concat(mainJunctions)
+    .concat(innerJunctions)
+    .forEach(function (pos) {
+      pad(pos[0], pos[1], 16);
+    });
 }
 
 // ─── GRASSY FIELDS ────────────────────────────────────────────────────────────
 function buildGrassyFields() {
   var patch = new THREE.Mesh(
     new THREE.PlaneGeometry(120, 120),
-    new THREE.MeshLambertMaterial({ color: 0x6abf55 }),
+    new THREE.MeshLambertMaterial({
+      color: 0x6abf55,
+      polygonOffset: true,
+      polygonOffsetFactor: 1,
+      polygonOffsetUnits: 1,
+    }),
   );
   patch.rotation.x = -Math.PI / 2;
   patch.position.set(-70, 0.01, -70);
@@ -723,7 +759,12 @@ function tree(x, z, scale) {
 function buildDowntown() {
   var plaza = new THREE.Mesh(
     new THREE.PlaneGeometry(90, 90),
-    new THREE.MeshLambertMaterial({ color: 0x888888 }),
+    new THREE.MeshLambertMaterial({
+      color: 0x888888,
+      polygonOffset: true,
+      polygonOffsetFactor: 1,
+      polygonOffsetUnits: 1,
+    }),
   );
   plaza.rotation.x = -Math.PI / 2;
   plaza.position.set(0, 0.01, 0);
@@ -822,7 +863,12 @@ function billboard(x, z, color) {
 function buildRockyHills() {
   var patch = new THREE.Mesh(
     new THREE.PlaneGeometry(120, 120),
-    new THREE.MeshLambertMaterial({ color: 0x9e8866 }),
+    new THREE.MeshLambertMaterial({
+      color: 0x9e8866,
+      polygonOffset: true,
+      polygonOffsetFactor: 1,
+      polygonOffsetUnits: 1,
+    }),
   );
   patch.rotation.x = -Math.PI / 2;
   patch.position.set(80, 0.01, -70);
@@ -895,7 +941,12 @@ function dryTree(x, z) {
 function buildIndustrialStrip() {
   var patch = new THREE.Mesh(
     new THREE.PlaneGeometry(110, 110),
-    new THREE.MeshLambertMaterial({ color: 0x777766 }),
+    new THREE.MeshLambertMaterial({
+      color: 0x777766,
+      polygonOffset: true,
+      polygonOffsetFactor: 1,
+      polygonOffsetUnits: 1,
+    }),
   );
   patch.rotation.x = -Math.PI / 2;
   patch.position.set(-70, 0.01, 70);
@@ -985,7 +1036,12 @@ function buildWaterfront() {
   // Land patch
   var patch = new THREE.Mesh(
     new THREE.PlaneGeometry(110, 110),
-    new THREE.MeshLambertMaterial({ color: 0x4a9a88 }),
+    new THREE.MeshLambertMaterial({
+      color: 0x4a9a88,
+      polygonOffset: true,
+      polygonOffsetFactor: 1,
+      polygonOffsetUnits: 1,
+    }),
   );
   patch.rotation.x = -Math.PI / 2;
   patch.position.set(80, 0.01, 70);
@@ -1252,83 +1308,41 @@ function drawMinimap() {
     ctx.restore();
   }
 
-  // ── Draw every road in the network (mirrors buildRoadNetwork exactly) ──
-  // Main cross
-  mroad(0, 0, 9, 240);
-  mroad(0, 0, 9, 240, Math.PI / 2);
+  // ── Draw every road — mirrors buildRoadNetwork exactly ──────────────
   // Outer ring
-  mroad(-85, 0, 9, 170);
-  mroad(85, 0, 9, 170);
   mroad(0, -85, 9, 170, Math.PI / 2);
   mroad(0, 85, 9, 170, Math.PI / 2);
-  mroad(-85, -85, 9, 9);
-  mroad(85, -85, 9, 9);
-  mroad(-85, 85, 9, 9);
-  mroad(85, 85, 9, 9);
-  // Original shortcuts
-  mroad(-42, -42, 7, 80, Math.PI / 4);
-  mroad(42, 42, 7, 80, Math.PI / 4);
-  mroad(-60, 0, 7, 60, Math.PI / 2);
-  mroad(60, 0, 7, 60, Math.PI / 2);
-  mroad(0, -60, 7, 60);
-  mroad(0, 60, 7, 60);
-  // Inner mid-ring
-  mroad(-42, 0, 7, 84);
-  mroad(42, 0, 7, 84);
-  mroad(0, -42, 7, 84, Math.PI / 2);
-  mroad(0, 42, 7, 84, Math.PI / 2);
-  mroad(-42, -42, 7, 9);
-  mroad(42, -42, 7, 9);
-  mroad(-42, 42, 7, 9);
-  mroad(42, 42, 7, 9);
-  // Gas Station spurs
-  mroad(-75, 55, 8, 36);
-  mroad(-75, 38, 8, 8, Math.PI / 2);
-  mroad(-75, 72, 8, 8, Math.PI / 2);
-  mroad(-58, 55, 7, 34, Math.PI / 2);
-  mroad(-42, 55, 7, 66, Math.PI / 2);
-  mroad(-42, 55, 7, 8);
-  // Downtown grid
-  mroad(0, -25, 8, 50, Math.PI / 2);
-  mroad(-22, -25, 7, 34);
-  mroad(22, -25, 7, 34);
-  mroad(0, -42, 7, 34, Math.PI / 2);
-  mroad(0, -8, 7, 34, Math.PI / 2);
-  mroad(-22, -8, 7, 8);
-  mroad(22, -8, 7, 8);
-  mroad(-22, -42, 7, 8);
-  mroad(22, -42, 7, 8);
-  // Waterfront roads
-  mroad(80, 70, 8, 40);
-  mroad(80, 52, 8, 8, Math.PI / 2);
-  mroad(80, 88, 8, 8, Math.PI / 2);
-  mroad(62, 70, 7, 36, Math.PI / 2);
-  mroad(62, 52, 7, 8);
-  mroad(62, 88, 7, 8);
-  mroad(42, 70, 7, 36, Math.PI / 2);
-  // Cross-map connectors
-  mroad(-42, 28, 7, 54, Math.PI / 2);
-  mroad(-22, 28, 7, 8, Math.PI / 2);
-  mroad(0, 28, 7, 8, Math.PI / 2);
-  mroad(42, -25, 7, 84, Math.PI / 2);
-  mroad(62, -25, 7, 84, Math.PI / 2);
-  mroad(42, 0, 7, 50, Math.PI / 2);
-  mroad(-17, 70, 7, 194, Math.PI / 2);
-  mroad(22, 70, 7, 40, Math.PI / 2);
-  mroad(-17, 85, 7, 136, Math.PI / 2);
-  // Rocky Hills roads
-  mroad(85, -42, 7, 86, Math.PI / 2);
-  mroad(62, -62, 7, 46, Math.PI / 2);
-  mroad(62, -85, 7, 8);
-  // Grassy Fields roads
-  mroad(-62, -62, 7, 46, Math.PI / 2);
-  mroad(-85, -62, 7, 8, Math.PI / 2);
-  mroad(-62, -85, 7, 8);
+  mroad(-85, 0, 9, 170, 0);
+  mroad(85, 0, 9, 170, 0);
+  // Main cross
+  mroad(0, 0, 9, 170, 0);
+  mroad(0, 0, 9, 170, Math.PI / 2);
+  // Inner full-height grid
+  mroad(-42, 0, 7, 170, 0);
+  mroad(42, 0, 7, 170, 0);
+  mroad(0, -42, 7, 170, Math.PI / 2);
+  mroad(0, 42, 7, 170, Math.PI / 2);
+  // Mid-latitude E-W
+  mroad(0, -62, 7, 170, Math.PI / 2);
+  mroad(0, 62, 7, 170, Math.PI / 2);
+  // Mid-longitude N-S
+  mroad(-62, 0, 7, 170, 0);
+  mroad(62, 0, 7, 170, 0);
+  // Gas station spur
+  mroad(-75, 0, 8, 170, 0);
+  mroad(-73, 55, 7, 24, Math.PI / 2);
+  // Waterfront spur
+  mroad(80, 63, 7, 46, 0);
+  mroad(73, 70, 7, 22, Math.PI / 2);
+  // Downtown cross streets
+  mroad(-22, -21, 7, 42, 0);
+  mroad(22, -21, 7, 42, 0);
+  mroad(0, -25, 7, 84, Math.PI / 2);
   // Diagonals
-  mroad(-42, 42, 7, 80, Math.PI / 4);
-  mroad(42, -42, 7, 80, Math.PI / 4);
-  mroad(42, 42, 7, 80, Math.PI / 4);
-  mroad(-42, -42, 7, 80, Math.PI / 4);
+  mroad(-21, -21, 7, 80, Math.PI / 4);
+  mroad(21, 21, 7, 80, Math.PI / 4);
+  mroad(21, -21, 7, 80, -Math.PI / 4);
+  mroad(-21, 21, 7, 80, -Math.PI / 4);
 
   // ── Active checkpoint marker — pulsing ring ──
   if (missionActive && !missionComplete) {
@@ -1425,7 +1439,7 @@ function updateCar(dt) {
   car.rotation.y = carRotation;
   car.position.x += Math.sin(carRotation) * carVelocity;
   car.position.z += Math.cos(carRotation) * carVelocity;
-  car.position.y = 0.38; // keep on ground
+  car.position.y = 0.38; // keep on ground (clears road top at y=0.24)
 
   // Hard boundary — matches the minimap border (world coords ±100)
   car.position.x = Math.max(-100, Math.min(100, car.position.x));
