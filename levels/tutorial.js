@@ -21,11 +21,45 @@ const TUTORIAL_LEVEL = {
     { x: 80, z: 70, r: 12, label: "Waterfront", color: 0x7bb8f5, emoji: "🌉" },
   ],
   tutorialFlow: [
-    { message: "Use WASD to navigate", type: "wait-keys", keys: ["KeyW", "KeyA", "KeyS", "KeyD"] },
-    { message: "Use Shift to boost", type: "wait-keys", keys: ["ShiftLeft", "ShiftRight"] },
-    { message: "Your mission bar is on the top right", type: "glow-mission", duration: 3000 },
-    { message: "Nice! You are ready to explore the city!\nYou are currently in Euthymia", type: "state-message", duration: 10000 },
-    { message: "Now you are experiencing a Depressive episode", type: "state-message", duration: 15000 },
-    { message: "Now you are experiencing a Manic episode", type: "state-message", duration: 15000 },
+    {
+      message: "Use Arrow Keys or WASD to navigate",
+      type: "wait-keys",
+      keys: [
+        "KeyW",
+        "KeyA",
+        "KeyS",
+        "KeyD",
+        "ArrowUp",
+        "ArrowLeft",
+        "ArrowDown",
+        "ArrowRight",
+      ],
+    },
+    {
+      message: "Use Shift to boost",
+      type: "wait-keys",
+      keys: ["ShiftLeft", "ShiftRight"],
+    },
+    {
+      message: "Your mission bar is on the top right",
+      type: "glow-mission",
+      duration: 3000,
+    },
+    {
+      message:
+        "Nice! You are ready to explore the city!\nYou are currently in Euthymia",
+      type: "state-message",
+      duration: 10000,
+    },
+    {
+      message: "Now you are experiencing a Depressive episode",
+      type: "state-message",
+      duration: 15000,
+    },
+    {
+      message: "Now you are experiencing a Manic episode",
+      type: "state-message",
+      duration: 15000,
+    },
   ],
 };

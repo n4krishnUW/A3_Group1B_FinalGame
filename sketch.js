@@ -115,6 +115,11 @@ let level1EpisodeSchedule = []; // Array of episode start times for the level
 let level1EpisodeDurations = []; // Array of episode durations (randomized for each episode)
 let level1CurrentEpisodeIndex = 0; // Track which episode in the schedule we're on
 
+// Level 2 unpredictable episode system (manic episodes)
+let level2EpisodeSchedule = []; // Array of manic episode start times for the level
+let level2EpisodeDurations = []; // Array of manic episode durations (randomized for each episode)
+let level2CurrentEpisodeIndex = 0; // Track which manic episode in the schedule we're on
+
 // ─── MINIMAP DISCOVERY SYSTEM ──────────────────────────────────────────────────
 // Tracks which zones have been visited during depressive episode
 let visitedZones = {}; // { "Grassy Fields NW": true, "Downtown": true, ... }
@@ -137,25 +142,28 @@ function startTutorialFlow() {
 
 function checkTutorialKeyCompletion() {
   if (!tutorialActive || tutorialCompleted) return;
-  
+
   var tutorialFlow = TUTORIAL_LEVEL.tutorialFlow;
   var currentStep = tutorialFlow[tutorialStepIndex];
-  
+
   if (!currentStep || currentStep.type !== "wait-keys") return;
-  
+
   // Check if required keys have been pressed
-  // For shift keys, only need one of them; for other keys, need all of them
   var allKeyPressed = false;
-  if (currentStep.keys.includes("ShiftLeft") || currentStep.keys.includes("ShiftRight")) {
+  if (
+    currentStep.keys.includes("ShiftLeft") ||
+    currentStep.keys.includes("ShiftRight")
+  ) {
     // For shift, check if either ShiftLeft or ShiftRight is pressed
-    allKeyPressed = tutorialKeysPressed["ShiftLeft"] || tutorialKeysPressed["ShiftRight"];
+    allKeyPressed =
+      tutorialKeysPressed["ShiftLeft"] || tutorialKeysPressed["ShiftRight"];
   } else {
-    // For other keys (like WASD), check if all are pressed
-    allKeyPressed = currentStep.keys.every(function (key) {
+    // For movement keys (WASD or Arrow keys), check if ANY key is pressed
+    allKeyPressed = currentStep.keys.some(function (key) {
       return tutorialKeysPressed[key];
     });
   }
-  
+
   if (allKeyPressed) {
     flashSuccessOverlay();
     var notif = document.getElementById("tutorial-notification");
@@ -184,7 +192,7 @@ function flashSuccessOverlay() {
 
 function showNextTutorialStep() {
   var tutorialFlow = TUTORIAL_LEVEL.tutorialFlow;
-  
+
   // If all steps are complete, show completion screen
   if (!tutorialFlow || tutorialStepIndex >= tutorialFlow.length) {
     showTutorialCompletion();
@@ -200,7 +208,11 @@ function showNextTutorialStep() {
   notif.className = "tutorial-notification show";
 
   // Detect which episode this step represents and update currentEpisode
-  if (step.type === "state-message" && !lockDepressiveEpisode && !lockManicEpisode) {
+  if (
+    step.type === "state-message" &&
+    !lockDepressiveEpisode &&
+    !lockManicEpisode
+  ) {
     if (step.message.includes("Euthymia")) {
       currentEpisode = "euthymia";
     } else if (step.message.includes("Depressive")) {
@@ -213,7 +225,9 @@ function showNextTutorialStep() {
       exploredAreaCanvas.height = 200;
       exploredAreaCtx = exploredAreaCanvas.getContext("2d");
       exploredAreaCtx.fillStyle = "rgba(100, 140, 180, 0.5)"; // Blue-grey tint for visited areas
-      console.log("DEPRESSIVE EPISODE STARTED: visitedZones, discoveredRoads, and exploredAreaCanvas cleared");
+      console.log(
+        "DEPRESSIVE EPISODE STARTED: visitedZones, discoveredRoads, and exploredAreaCanvas cleared",
+      );
     } else if (step.message.includes("Manic")) {
       currentEpisode = "manic";
     }
@@ -269,18 +283,18 @@ function scheduleNextTutorialStep() {
 function glowMissionPanel() {
   var panel = document.getElementById("mission-panel");
   var overlay = document.getElementById("mission-focus-overlay");
-  
+
   if (panel) {
     panel.classList.add("glow");
   }
-  
+
   if (overlay) {
     overlay.classList.add("show");
     setTimeout(function () {
       overlay.classList.remove("show");
     }, 3000);
   }
-  
+
   if (panel) {
     setTimeout(function () {
       panel.classList.remove("glow");
@@ -296,10 +310,10 @@ function showTutorialCompletion() {
 function buildMissionSteps() {
   var stepsContainer = document.getElementById("mission-steps");
   if (!stepsContainer) return;
-  
+
   // Clear existing dots
   stepsContainer.innerHTML = "";
-  
+
   // Create a dot for each checkpoint
   CHECKPOINTS.forEach(function (_, i) {
     var dot = document.createElement("div");
@@ -318,10 +332,10 @@ function generateLevel1EpisodeSchedule() {
   level1EpisodeSchedule = [];
   level1EpisodeDurations = [];
   level1CurrentEpisodeIndex = 0;
-  
+
   // Only generate schedule for Level 1
   if (currentLevel !== "level1") return;
-  
+
   var levelConfig = LEVEL1;
   var episodeCount = levelConfig.episodeCount || 3;
   var episodeDurationMin = levelConfig.episodeDurationMin || 2000;
@@ -329,85 +343,198 @@ function generateLevel1EpisodeSchedule() {
   var levelDuration = 30000; // 30 seconds in milliseconds
   var maxGapBetweenEpisodes = 3000; // Maximum 3 seconds between end of one episode and start of next
   var minGapBetweenEpisodes = 0.5 * 1000; // Minimum 0.5 seconds gap for unpredictability
-  
+
   // Generate random duration for each episode
   for (var i = 0; i < episodeCount; i++) {
-    var randomDuration = episodeDurationMin + Math.random() * (episodeDurationMax - episodeDurationMin);
+    var randomDuration =
+      episodeDurationMin +
+      Math.random() * (episodeDurationMax - episodeDurationMin);
     level1EpisodeDurations.push(randomDuration);
   }
-  
+
   // Schedule episodes with maximum 3-second gaps between them
   var currentTime = 0.5 * 1000; // Start first episode at least 0.5 seconds in
-  
+
   for (var i = 0; i < episodeCount; i++) {
     // Record start time of this episode
     level1EpisodeSchedule.push(currentTime);
-    
+
     // Move to the end of this episode
     currentTime += level1EpisodeDurations[i];
-    
+
     // Add gap before next episode (random between 0.5 and 3 seconds)
     if (i < episodeCount - 1) {
-      var randomGap = minGapBetweenEpisodes + Math.random() * (maxGapBetweenEpisodes - minGapBetweenEpisodes);
+      var randomGap =
+        minGapBetweenEpisodes +
+        Math.random() * (maxGapBetweenEpisodes - minGapBetweenEpisodes);
       currentTime += randomGap;
-      
+
       // Safety check: if next episode would exceed level duration, clamp it
       var remainingTime = levelDuration - currentTime;
       var remainingEpisodes = episodeCount - i - 1;
-      var minRemainingTime = remainingEpisodes * (episodeDurationMin + minGapBetweenEpisodes);
-      
+      var minRemainingTime =
+        remainingEpisodes * (episodeDurationMin + minGapBetweenEpisodes);
+
       if (remainingTime < minRemainingTime) {
         // Adjust current time to fit remaining episodes
         currentTime = levelDuration - minRemainingTime;
       }
     }
   }
-  
-  console.log("Level 1 Episode Schedule Generated (Max 3 seconds between episodes):", 
-    level1EpisodeSchedule.map(function(t, i) { 
-      return (t/1000).toFixed(1) + "s (duration: " + (level1EpisodeDurations[i]/1000).toFixed(1) + "s)"; 
-    }).join(", "));
+
+  console.log(
+    "Level 1 Episode Schedule Generated (Max 3 seconds between episodes):",
+    level1EpisodeSchedule
+      .map(function (t, i) {
+        return (
+          (t / 1000).toFixed(1) +
+          "s (duration: " +
+          (level1EpisodeDurations[i] / 1000).toFixed(1) +
+          "s)"
+        );
+      })
+      .join(", "),
+  );
+}
+
+// Generate unpredictable manic episode schedule for Level 2
+// Randomly distributes manic episodes throughout the 30-second level
+function generateLevel2EpisodeSchedule() {
+  level2EpisodeSchedule = [];
+  level2EpisodeDurations = [];
+  level2CurrentEpisodeIndex = 0;
+
+  // Only generate schedule for Level 2
+  if (currentLevel !== "level2") return;
+
+  var levelConfig = LEVEL2;
+  var episodeCount = levelConfig.episodeCount || 2;
+  var episodeDurationMin = levelConfig.episodeDurationMin || 7000;
+  var episodeDurationMax = levelConfig.episodeDurationMax || 15000;
+  var levelDuration = 45000; // 45 seconds in milliseconds for Level 2
+  var maxGapBetweenEpisodes = 3000; // Maximum 3 seconds between end of one episode and start of next
+  var minGapBetweenEpisodes = 0.5 * 1000; // Minimum 0.5 seconds gap for unpredictability
+
+  // Generate random duration for each manic episode
+  for (var i = 0; i < episodeCount; i++) {
+    var randomDuration =
+      episodeDurationMin +
+      Math.random() * (episodeDurationMax - episodeDurationMin);
+    level2EpisodeDurations.push(randomDuration);
+  }
+
+  // Schedule episodes with maximum 3-second gaps between them
+  var currentTime = 2 * 1000; // Start first manic episode at least 2 seconds in
+
+  for (var i = 0; i < episodeCount; i++) {
+    // Record start time of this episode
+    level2EpisodeSchedule.push(currentTime);
+
+    // Move to the end of this episode
+    currentTime += level2EpisodeDurations[i];
+
+    // Add gap before next episode (random between 0.5 and 3 seconds)
+    if (i < episodeCount - 1) {
+      var randomGap =
+        minGapBetweenEpisodes +
+        Math.random() * (maxGapBetweenEpisodes - minGapBetweenEpisodes);
+      currentTime += randomGap;
+
+      // Safety check: if next episode would exceed level duration, clamp it
+      var remainingTime = levelDuration - currentTime;
+      var remainingEpisodes = episodeCount - i - 1;
+      var minRemainingTime =
+        remainingEpisodes * (episodeDurationMin + minGapBetweenEpisodes);
+
+      if (remainingTime < minRemainingTime) {
+        // Adjust current time to fit remaining episodes
+        currentTime = levelDuration - minRemainingTime;
+      }
+    }
+  }
+
+  console.log(
+    "Level 2 Manic Episode Schedule Generated (Max 3 seconds between episodes):",
+    level2EpisodeSchedule
+      .map(function (t, i) {
+        return (
+          (t / 1000).toFixed(1) +
+          "s (duration: " +
+          (level2EpisodeDurations[i] / 1000).toFixed(1) +
+          "s)"
+        );
+      })
+      .join(", "),
+  );
 }
 
 // Update episode state for Level 1 - manages unpredictable episode transitions
 function updateLevel1Episodes() {
   if (currentLevel !== "level1" || !missionActive || missionComplete) return;
   if (lockDepressiveEpisode || lockManicEpisode) return; // Skip if developer locked
-  
+
   var missionElapsedMs = missionElapsed * 1000;
-  
+
   // Check if we should start the next episode
   if (level1CurrentEpisodeIndex < level1EpisodeSchedule.length) {
     var nextEpisodeStart = level1EpisodeSchedule[level1CurrentEpisodeIndex];
     var nextEpisodeDuration = level1EpisodeDurations[level1CurrentEpisodeIndex];
     var nextEpisodeEnd = nextEpisodeStart + nextEpisodeDuration;
-    
+
     // DEBUG: Log episode timing (remove after testing)
-    if (missionElapsedMs % 1000 < 50) { // Log once per second
-      console.log("Level 1 Episode Check | Time: " + (missionElapsedMs/1000).toFixed(1) + "s | Episode " + level1CurrentEpisodeIndex + 
-        " | Window: " + (nextEpisodeStart/1000).toFixed(1) + "-" + (nextEpisodeEnd/1000).toFixed(1) + "s | Current State: " + currentEpisode);
+    if (missionElapsedMs % 1000 < 50) {
+      // Log once per second
+      console.log(
+        "Level 1 Episode Check | Time: " +
+          (missionElapsedMs / 1000).toFixed(1) +
+          "s | Episode " +
+          level1CurrentEpisodeIndex +
+          " | Window: " +
+          (nextEpisodeStart / 1000).toFixed(1) +
+          "-" +
+          (nextEpisodeEnd / 1000).toFixed(1) +
+          "s | Current State: " +
+          currentEpisode,
+      );
     }
-    
-    if (missionElapsedMs >= nextEpisodeStart && missionElapsedMs < nextEpisodeEnd) {
+
+    if (
+      missionElapsedMs >= nextEpisodeStart &&
+      missionElapsedMs < nextEpisodeEnd
+    ) {
       // We're within an episode
       if (currentEpisode !== "depressive") {
-        console.log("🔴 ENTERING DEPRESSIVE EPISODE " + level1CurrentEpisodeIndex + " at time " + (missionElapsedMs/1000).toFixed(1) + "s");
+        console.log(
+          "🔴 ENTERING DEPRESSIVE EPISODE " +
+            level1CurrentEpisodeIndex +
+            " at time " +
+            (missionElapsedMs / 1000).toFixed(1) +
+            "s",
+        );
         currentEpisode = "depressive";
         episodeStartTime = Date.now();
-        
+
         // Initialize explored area canvas for fog-of-war discovery
-        visitedZones = {}; // Clear zone discoveries 
+        visitedZones = {}; // Clear zone discoveries
         discoveredRoads = {}; // Clear road discoveries
         exploredAreaCanvas = document.createElement("canvas");
         exploredAreaCanvas.width = 200;
         exploredAreaCanvas.height = 200;
         exploredAreaCtx = exploredAreaCanvas.getContext("2d");
         exploredAreaCtx.fillStyle = "rgba(100, 140, 180, 0.5)"; // Blue-grey tint for visited areas
-        console.log("🔴 Level 1 depressive episode started: fog-of-war discovery initialized");
+        console.log(
+          "🔴 Level 1 depressive episode started: fog-of-war discovery initialized",
+        );
       }
     } else if (missionElapsedMs >= nextEpisodeEnd) {
       // Episode is over, move to next one
-      console.log("🟢 EXITING DEPRESSIVE EPISODE " + level1CurrentEpisodeIndex + " at time " + (missionElapsedMs/1000).toFixed(1) + "s");
+      console.log(
+        "🟢 EXITING DEPRESSIVE EPISODE " +
+          level1CurrentEpisodeIndex +
+          " at time " +
+          (missionElapsedMs / 1000).toFixed(1) +
+          "s",
+      );
       level1CurrentEpisodeIndex++;
       currentEpisode = "euthymia";
       // Reset fog-of-war for normal mode
@@ -417,6 +544,79 @@ function updateLevel1Episodes() {
   } else {
     // All episodes are done, return to euthymia
     currentEpisode = "euthymia";
+  }
+}
+
+// Update episode state for Level 2 - manages unpredictable manic episode transitions
+function updateLevel2Episodes() {
+  if (currentLevel !== "level2" || !missionActive || missionComplete) return;
+  if (lockDepressiveEpisode || lockManicEpisode) return; // Skip if developer locked
+
+  var missionElapsedMs = missionElapsed * 1000;
+
+  // Check if we should start the next manic episode
+  if (level2CurrentEpisodeIndex < level2EpisodeSchedule.length) {
+    var nextEpisodeStart = level2EpisodeSchedule[level2CurrentEpisodeIndex];
+    var nextEpisodeDuration = level2EpisodeDurations[level2CurrentEpisodeIndex];
+    var nextEpisodeEnd = nextEpisodeStart + nextEpisodeDuration;
+
+    // DEBUG: Log episode timing
+    if (missionElapsedMs % 1000 < 50) {
+      // Log once per second
+      console.log(
+        "Level 2 Manic Check | Time: " +
+          (missionElapsedMs / 1000).toFixed(1) +
+          "s | Episode " +
+          level2CurrentEpisodeIndex +
+          " | Window: " +
+          (nextEpisodeStart / 1000).toFixed(1) +
+          "-" +
+          (nextEpisodeEnd / 1000).toFixed(1) +
+          "s | Current State: " +
+          currentEpisode,
+      );
+    }
+
+    if (
+      missionElapsedMs >= nextEpisodeStart &&
+      missionElapsedMs < nextEpisodeEnd
+    ) {
+      // We're within a manic episode
+      if (currentEpisode !== "manic") {
+        console.log(
+          "🟡 ENTERING MANIC EPISODE " +
+            level2CurrentEpisodeIndex +
+            " at time " +
+            (missionElapsedMs / 1000).toFixed(1) +
+            "s",
+        );
+        currentEpisode = "manic";
+        episodeStartTime = Date.now();
+
+        // Apply warm sky color and building tints immediately
+        scene.background = new THREE.Color(0xffdd44); // Warm yellow
+        console.log(
+          "🟡 Level 2 manic episode started: warm euphoric state activated",
+        );
+      }
+    } else if (missionElapsedMs >= nextEpisodeEnd) {
+      // Manic episode is over, move to next one
+      console.log(
+        "🔵 EXITING MANIC EPISODE " +
+          level2CurrentEpisodeIndex +
+          " at time " +
+          (missionElapsedMs / 1000).toFixed(1) +
+          "s",
+      );
+      level2CurrentEpisodeIndex++;
+      currentEpisode = "euthymia";
+      // Reset sky to normal blue
+      scene.background = new THREE.Color(0x87ceeb);
+    }
+  } else {
+    // All episodes are done, return to euthymia
+    currentEpisode = "euthymia";
+    scene.background = new THREE.Color(0x87ceeb);
   }
 }
 
@@ -537,10 +737,15 @@ function beginMission() {
   if (currentLevel === "tutorial") {
     startTutorialFlow();
   }
-  
+
   // Generate episode schedule if in level 1
   if (currentLevel === "level1") {
     generateLevel1EpisodeSchedule();
+  }
+
+  // Generate manic episode schedule if in level 2
+  if (currentLevel === "level2") {
+    generateLevel2EpisodeSchedule();
   }
 }
 
@@ -557,10 +762,11 @@ function updateMissionHUD() {
   missionElapsed = (Date.now() - missionStart) / 1000;
 
   var timerEl = document.getElementById("mission-timer");
-  
+
   // For non-tutorial levels, show countdown timer
   if (currentLevel !== "tutorial") {
-    var timeRemaining = Math.max(0, 30 - missionElapsed);
+    var levelTimeLimit = currentLevel === "level2" ? 45 : 30; // 45 seconds for Level 2, 30 for others
+    var timeRemaining = Math.max(0, levelTimeLimit - missionElapsed);
     timerEl.textContent = formatTime(timeRemaining);
     // Flash red when 10 seconds or less remain
     timerEl.classList.toggle("urgent", timeRemaining <= 10);
@@ -570,12 +776,15 @@ function updateMissionHUD() {
     timerEl.classList.toggle("urgent", missionElapsed > 90);
   }
 
-  // Check for 30-second timeout on non-tutorial levels
-  if (currentLevel !== "tutorial" && !missionTimeoutShown && missionElapsed >= 30) {
-    missionTimeoutShown = true;
-    missionActive = false;
-    document.getElementById("level-timeout").classList.add("show");
-    return;
+  // Check for timeout on non-tutorial levels
+  if (currentLevel !== "tutorial" && !missionTimeoutShown) {
+    var levelTimeLimit = currentLevel === "level2" ? 45 : 30; // 45 seconds for Level 2, 30 for others
+    if (missionElapsed >= levelTimeLimit) {
+      missionTimeoutShown = true;
+      missionActive = false;
+      document.getElementById("level-timeout").classList.add("show");
+      return;
+    }
   }
 
   // In tutorial, hide checkpoint destination and distance
@@ -589,7 +798,8 @@ function updateMissionHUD() {
       "Drive to <strong>" + cp.emoji + " " + cp.label + "</strong>";
   } else {
     // Tutorial mode: show generic message
-    document.getElementById("mission-objective").innerHTML = "Follow the tutorial instructions";
+    document.getElementById("mission-objective").innerHTML =
+      "Follow the tutorial instructions";
   }
 
   updateLevelDisplay();
@@ -650,7 +860,7 @@ function showWinScreen() {
     },
   ).join("  →  ");
   document.getElementById("win-screen").classList.add("show");
-  
+
   // Show level-specific completion popup if not tutorial
   showLevelCompletion();
 }
@@ -658,7 +868,7 @@ function showWinScreen() {
 function showLevelCompletion() {
   // Hide win screen and show appropriate level completion popup
   document.getElementById("win-screen").classList.remove("show");
-  
+
   if (currentLevel === "level1") {
     document.getElementById("level1-completion").classList.add("show");
   } else if (currentLevel === "level2") {
@@ -675,7 +885,7 @@ function restartMission() {
   document.getElementById("level2-completion").classList.remove("show");
   document.getElementById("level3-completion").classList.remove("show");
   document.getElementById("level-timeout").classList.remove("show");
-  
+
   // Reset tutorial state when restarting (ensures fresh tutorial on restart)
   tutorialActive = false;
   tutorialStepIndex = 0;
@@ -686,7 +896,7 @@ function restartMission() {
   if (notif) {
     notif.classList.remove("show");
   }
-  
+
   resetCar();
   beginMission();
 }
@@ -700,7 +910,7 @@ function switchLevel(newLevel) {
   document.getElementById("level3-completion").classList.remove("show");
   document.getElementById("win-screen").classList.remove("show");
   document.getElementById("level-timeout").classList.remove("show");
-  
+
   // Reset tutorial state — tutorial is only active in tutorial level
   if (newLevel !== "tutorial") {
     tutorialActive = false;
@@ -710,7 +920,7 @@ function switchLevel(newLevel) {
       notif.classList.remove("show");
     }
   }
-  
+
   currentLevel = newLevel;
   CHECKPOINTS = LEVELS[currentLevel];
   currentEpisode = "euthymia"; // reset episode when switching levels
@@ -732,9 +942,9 @@ function goToPreviousLevel() {
   var previousLevel = {
     level1: "tutorial",
     level2: "level1",
-    level3: "level2"
+    level3: "level2",
   };
-  
+
   if (previousLevel[currentLevel]) {
     switchLevel(previousLevel[currentLevel]);
   }
@@ -788,14 +998,14 @@ function detectZone(x, z) {
 function initFisheyeEffect() {
   var width = window.innerWidth;
   var height = window.innerHeight;
-  
+
   // Create a render target to capture the main scene
   fisheyeRenderTarget = new THREE.WebGLRenderTarget(width, height, {
     minFilter: THREE.LinearFilter,
     magFilter: THREE.LinearFilter,
     format: THREE.RGBAFormat,
   });
-  
+
   // Create shader material for barrel distortion with chromatic aberration and sway
   fisheyeMaterial = new THREE.ShaderMaterial({
     uniforms: {
@@ -803,6 +1013,8 @@ function initFisheyeEffect() {
       strength: { value: 0.0 }, // Controls intensity of distortion (0 to 1)
       time: { value: 0.0 }, // Time for wobble/sway effects
       chromaticStrength: { value: 0.0 }, // Chromatic aberration intensity (0 to 1)
+      yellowVignetteStrength: { value: 0.0 }, // Yellow vignette blur intensity for manic (0 to 1)
+      vignetteZoomAmount: { value: 0.0 }, // Zoom effect for vignette (0 = edges, 1 = center)
     },
     vertexShader: `
       varying vec2 vUv;
@@ -816,6 +1028,8 @@ function initFisheyeEffect() {
       uniform float strength;
       uniform float time;
       uniform float chromaticStrength;
+      uniform float yellowVignetteStrength;
+      uniform float vignetteZoomAmount;
       varying vec2 vUv;
       
       void main() {
@@ -833,26 +1047,26 @@ function initFisheyeEffect() {
         float wobble2 = sin(time * 1.3 + 1.57) * 0.12 * strength; // [1]
         distorted += vec2(wobble, wobble2);
         
-        // Chromatic aberration - separate color channels with slightly different distortions (for manic)
-        float chromaticAmount = chromaticStrength * 0.04;
-        vec2 redOffset = distorted + vec2(chromaticAmount, chromaticAmount * 0.5);
-        vec2 greenOffset = distorted;
-        vec2 blueOffset = distorted - vec2(chromaticAmount, chromaticAmount * 0.5);
+        // Warm chromatic aberration - separate with orange/yellow/red shifts (no cool blue fringing)
+        float chromaticAmount = chromaticStrength * 0.03;
+        vec2 orangeOffset = distorted + vec2(chromaticAmount, chromaticAmount * 0.5); // Warmer outer offset
+        vec2 yellowOffset = distorted; // Center channel (warm yellow)
+        vec2 redOffset = distorted - vec2(chromaticAmount, chromaticAmount * 0.5); // Warm inner offset
         
         // Clamp all channels
+        orangeOffset = clamp(orangeOffset, 0.0, 1.0);
+        yellowOffset = clamp(yellowOffset, 0.0, 1.0);
         redOffset = clamp(redOffset, 0.0, 1.0);
-        greenOffset = clamp(greenOffset, 0.0, 1.0);
-        blueOffset = clamp(blueOffset, 0.0, 1.0);
         
-        // Sample each color channel separately
-        float r = texture2D(tDiffuse, redOffset).r;
-        float g = texture2D(tDiffuse, greenOffset).g;
-        float b = texture2D(tDiffuse, blueOffset).b;
+        // Sample color channels
+        float orange = texture2D(tDiffuse, orangeOffset).r; // Use red channel for orange shift
+        float yellow = texture2D(tDiffuse, yellowOffset).g; // Use green channel for yellow
+        float red = texture2D(tDiffuse, redOffset).r; // Use red channel for red
         
-        // Blend between chromatic and normal based on aberration strength
-        vec3 chromaticColor = vec3(r, g, b);
+        // Blend warm chromatic colors (orange-yellow-red shifts, no cool blue)
+        vec3 warmChromaticColor = vec3(red, yellow * 0.9, orange * 0.5); // Warm aberration blend
         vec3 normalColor = texture2D(tDiffuse, clamp(distorted, 0.0, 1.0)).rgb;
-        vec3 sampleColor = mix(normalColor, chromaticColor, chromaticStrength);
+        vec3 sampleColor = mix(normalColor, warmChromaticColor, chromaticStrength * 0.6);
         
         // Add enhanced vignetting (darkening at edges) - applies to both depressive and manic
         float vignetteStrength = max(strength, chromaticStrength);
@@ -860,19 +1074,37 @@ function initFisheyeEffect() {
         vignette = clamp(vignette, 0.0, 1.0);
         vec4 color = vec4(sampleColor, 1.0) * vignette;
         
+        // Yellow vignette blur for manic state with smooth inward zoom effect
+        if (yellowVignetteStrength > 0.0) {
+          // Strong yellow glow that intensifies at edges and extends far into center
+          // Create a more gradual falloff so yellow surrounds the car
+          float edgeIntensity = pow(len, 1.5); // Smooth falloff from edges toward center
+          vec3 yellowOverlay = vec3(1.0, 0.9, 0.4); // Bright warm yellow
+          
+          // Apply zoom effect: pull yellow from edges toward center (surrounding the car)
+          float zoomPull = mix(0.3, 1.0, vignetteZoomAmount); // Start at 0.3 (always some yellow at center) to 1.0
+          float vignetteBlur = edgeIntensity * zoomPull; // Extends further inward with zoom
+          
+          // Blend yellow vignette strongly into the scene
+          color.rgb = mix(color.rgb, yellowOverlay, yellowVignetteStrength * vignetteBlur);
+          
+          // Add additional yellow wash that extends all the way to center during full zoom
+          color.rgb += yellowOverlay * yellowVignetteStrength * edgeIntensity * 0.8 * vignetteZoomAmount;
+        }
+        
         gl_FragColor = color;
       }
     `,
   });
-  
+
   // Create a fullscreen quad to apply the effect
   var quadGeo = new THREE.PlaneGeometry(2, 2);
   distortionQuad = new THREE.Mesh(quadGeo, fisheyeMaterial);
-  
+
   // Create a separate scene for the distortion effect
   distortionScene = new THREE.Scene();
   distortionScene.add(distortionQuad);
-  
+
   // Create an orthographic camera for the post-processing pass
   distortionCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 1000);
   distortionCamera.position.z = 1;
@@ -883,15 +1115,32 @@ function renderWithEffects() {
   // Update shader time uniform for wobble and sway effects
   if (fisheyeMaterial && fisheyeMaterial.uniforms) {
     fisheyeMaterial.uniforms.time.value += 0.016; // ~60fps
+
+    // Set manic state effects (yellow vignette with smooth zoom)
+    if (currentEpisode === "manic") {
+      // Smooth inward zoom animation: gradually transition from edges to center over time
+      var zoomTime = (Date.now() - episodeStartTime) / 4000.0; // Full zoom cycle every 4 seconds
+      var zoomAmount = Math.abs(Math.sin(zoomTime * Math.PI)); // Oscillate between 0 and 1.0 (full zoom into center)
+      fisheyeMaterial.uniforms.yellowVignetteStrength.value = 0.85;
+      fisheyeMaterial.uniforms.vignetteZoomAmount.value = zoomAmount;
+    } else {
+      fisheyeMaterial.uniforms.yellowVignetteStrength.value = 0.0;
+      fisheyeMaterial.uniforms.vignetteZoomAmount.value = 0.0;
+    }
   }
-  
+
   // FISHEYE LENS EFFECT ENABLED (distortion for depressive, chromatic aberration for manic)
-  if ((currentEpisode === "depressive" || currentEpisode === "manic") && fisheyeRenderTarget && distortionScene && distortionQuad) {
+  if (
+    (currentEpisode === "depressive" || currentEpisode === "manic") &&
+    fisheyeRenderTarget &&
+    distortionScene &&
+    distortionQuad
+  ) {
     // Render main scene to render target
     renderer.setRenderTarget(fisheyeRenderTarget);
     renderer.render(scene, camera);
     renderer.setRenderTarget(null);
-    
+
     // Apply distortion/chromatic effect to screen using orthographic camera
     renderer.render(distortionScene, distortionCamera);
   } else {
@@ -996,7 +1245,9 @@ function init() {
         exploredAreaCanvas.height = 200;
         exploredAreaCtx = exploredAreaCanvas.getContext("2d");
         exploredAreaCtx.fillStyle = "rgba(100, 140, 180, 0.5)"; // Blue-grey tint for visited areas
-        console.log("🔒 Depressive episode locked - visitedZones, discoveredRoads, and exploredAreaCanvas cleared");
+        console.log(
+          "🔒 Depressive episode locked - visitedZones, discoveredRoads, and exploredAreaCanvas cleared",
+        );
       } else {
         currentEpisode = "euthymia";
         console.log("🔓 Depressive episode unlocked - reset to euthymia");
@@ -1470,7 +1721,18 @@ function buildDowntown() {
 }
 
 function building(x, z, w, d, h, color) {
-  box(w, h, d, color, x, 0, z); // main body — auto-registers collider (h > 2)
+  // Apply warm color tint during manic episodes
+  var buildingColor = color;
+  if (currentEpisode === "manic") {
+    // Shift color toward warmer tones (increase red, maintain green, reduce blue)
+    var r = ((color >> 16) & 255) * 1.2; // Boost red
+    var g = ((color >> 8) & 255) * 1.0; // Keep green
+    var b = (color & 255) * 0.7; // Reduce blue
+    buildingColor =
+      (Math.min(r, 255) << 16) | (Math.min(g, 255) << 8) | Math.min(b, 255);
+  }
+
+  box(w, h, d, buildingColor, x, 0, z); // main body — auto-registers collider (h > 2)
   box(w * 0.4, 2, d * 0.4, 0x556677, x, h, z, 0, true, false); // rooftop trim — no collision
   // Windows (purely visual meshes — no box() collider needed)
   var winMat = new THREE.MeshLambertMaterial({
@@ -1907,7 +2169,14 @@ var MINIMAP_ZONES = [
   { name: "Grassy Fields", x: -70, z: -70, w: 110, h: 110, color: "#1e3a1a" },
   { name: "Rocky Hills", x: 25, z: -90, w: 95, h: 100, color: "#2a2218" },
   { name: "Downtown", x: -20, z: -20, w: 80, h: 80, color: "#192233" },
-  { name: "Industrial District", x: -125, z: 15, w: 110, h: 110, color: "#221c10" },
+  {
+    name: "Industrial District",
+    x: -125,
+    z: 15,
+    w: 110,
+    h: 110,
+    color: "#221c10",
+  },
   { name: "Waterfront", x: 35, z: 20, w: 110, h: 110, color: "#112233" },
 ];
 
@@ -1938,14 +2207,33 @@ function drawMinimap() {
   } else if (currentEpisode === "euthymia") {
     episodeConfig = EUTHYMIA_EPISODE;
   }
-  
-  // DEBUG: Log minimap rendering state (remove after testing)
-  if (missionActive && missionElapsed % 2 < 0.067) { // Log roughly every 2 seconds
-    console.log("📍 MINIMAP RENDER | currentEpisode: " + currentEpisode + " | episodeConfig: " + 
-      (episodeConfig ? episodeConfig.name : "null") + " | minimapDiscovery: " + 
-      (episodeConfig ? episodeConfig.minimapDiscovery : "N/A"));
+
+  // Save canvas state before rotation
+  ctx.save();
+
+  // Apply rotation to canvas grid (not the container)
+  if (episodeConfig && episodeConfig.minimapRotation) {
+    var rotationSpeed = episodeConfig.rotationSpeed || 0.06;
+    var rotationDegrees = (Date.now() * rotationSpeed) % 360;
+    var rotationRadians = (rotationDegrees * Math.PI) / 180; // Convert to radians
+    ctx.translate(W / 2, H / 2); // Translate to canvas center
+    ctx.rotate(rotationRadians); // Rotate the grid
+    ctx.translate(-W / 2, -H / 2); // Translate back
   }
-  
+
+  // DEBUG: Log minimap rendering state (remove after testing)
+  if (missionActive && missionElapsed % 2 < 0.067) {
+    // Log roughly every 2 seconds
+    console.log(
+      "📍 MINIMAP RENDER | currentEpisode: " +
+        currentEpisode +
+        " | episodeConfig: " +
+        (episodeConfig ? episodeConfig.name : "null") +
+        " | minimapDiscovery: " +
+        (episodeConfig ? episodeConfig.minimapDiscovery : "N/A"),
+    );
+  }
+
   // ── Background ──
   // During depressive episode with discovery: pure black background (foggy/blacked out)
   // Otherwise: dark green
@@ -1961,7 +2249,7 @@ function drawMinimap() {
   var visibilityRadius = 35; // World units - how far player can see on minimap in depressive mode
   var playerWorldX = car.position.x;
   var playerWorldZ = car.position.z;
-  
+
   // Helper function to check if a point is visible from player
   function isPointVisible(x, z) {
     if (!isDepressiveDiscovery) return true; // Always visible in normal mode
@@ -1970,12 +2258,12 @@ function drawMinimap() {
     var dist = Math.sqrt(dx * dx + dz * dz);
     return dist < visibilityRadius;
   }
-  
+
   // Helper function to check if a zone's center is visible
   function isZoneCenterVisible(z) {
     return isPointVisible(z.x, z.z);
   }
-  
+
   // Helper function to convert hex color to rgba with alpha
   function colorWithAlpha(hexColor, alpha) {
     // Convert #RRGGBB to rgba
@@ -1984,7 +2272,7 @@ function drawMinimap() {
     var b = parseInt(hexColor.slice(5, 7), 16);
     return "rgba(" + r + "," + g + "," + b + "," + alpha + ")";
   }
-  
+
   // ── Draw explored areas (BEFORE clipping, as persistent background) ──
   if (isDepressiveDiscovery && exploredAreaCanvas) {
     ctx.globalAlpha = 0.2;
@@ -1995,29 +2283,30 @@ function drawMinimap() {
   // ── Draw discovered zones and roads clipped to explored area (in depressive mode) ──
   if (isDepressiveDiscovery && exploredAreaCanvas) {
     // Create a temporary canvas for discovered items
-    var tempCanvas = document.createElement('canvas');
+    var tempCanvas = document.createElement("canvas");
     tempCanvas.width = mc.width;
     tempCanvas.height = mc.height;
-    var tempCtx = tempCanvas.getContext('2d');
-    
+    var tempCtx = tempCanvas.getContext("2d");
+
     // First, record any newly visible zones as discovered
     MINIMAP_ZONES.forEach(function (z) {
       if (isZoneCenterVisible(z)) {
         visitedZones[z.name] = true; // Mark zone as discovered
       }
     });
-    
+
     // Draw discovered zones to temp canvas
     MINIMAP_ZONES.forEach(function (z) {
       if (visitedZones[z.name]) {
         var isCurrentlyVisible = isZoneCenterVisible(z);
-        if (!isCurrentlyVisible) { // Only draw if not currently visible
+        if (!isCurrentlyVisible) {
+          // Only draw if not currently visible
           tempCtx.fillStyle = colorWithAlpha(z.color, 0.35);
           tempCtx.fillRect(wx(z.x), wz(z.z + z.h), z.w * S, z.h * S);
         }
       }
     });
-    
+
     // Draw discovered roads to temp canvas
     var roadDefs = [
       [0, -85, 9, 170, Math.PI / 2],
@@ -2044,9 +2333,9 @@ function drawMinimap() {
       [-21, -21, 7, 80, Math.PI / 4],
       [21, 21, 7, 80, Math.PI / 4],
       [21, -21, 7, 80, -Math.PI / 4],
-      [-21, 21, 7, 80, -Math.PI / 4]
+      [-21, 21, 7, 80, -Math.PI / 4],
     ];
-    
+
     // Helper function to draw a road on temp canvas
     function drawRoadToTemp(x, z, w, len, ry, opacity) {
       opacity = opacity || 1;
@@ -2061,28 +2350,28 @@ function drawMinimap() {
       tempCtx.fillRect((-len * S) / 2, -0.4, len * S, 0.8);
       tempCtx.restore();
     }
-    
+
     // Draw discovered roads to temp canvas
     for (var i = 0; i < roadDefs.length; i++) {
       var rd = roadDefs[i];
       var roadKey = rd[0] + "," + rd[1];
       var isCurrentlyVisible = isPointVisible(rd[0], rd[1]);
-      
+
       // Record road as discovered if currently visible
       if (isCurrentlyVisible) {
         discoveredRoads[roadKey] = true;
       }
-      
+
       // Draw discovered but not visible to temp canvas
       if (discoveredRoads[roadKey] && !isCurrentlyVisible) {
         drawRoadToTemp(rd[0], rd[1], rd[2], rd[3], rd[4], 0.35);
       }
     }
-    
+
     // Now composite the temp canvas with exploredAreaCanvas to clip it
-    tempCtx.globalCompositeOperation = 'destination-in';
+    tempCtx.globalCompositeOperation = "destination-in";
     tempCtx.drawImage(exploredAreaCanvas, 0, 0);
-    
+
     // Draw the clipped temp canvas to main canvas
     ctx.drawImage(tempCanvas, 0, 0);
   } else {
@@ -2186,9 +2475,9 @@ function drawMinimap() {
       [-21, -21, 7, 80, Math.PI / 4],
       [21, 21, 7, 80, Math.PI / 4],
       [21, -21, 7, 80, -Math.PI / 4],
-      [-21, 21, 7, 80, -Math.PI / 4]
+      [-21, 21, 7, 80, -Math.PI / 4],
     ];
-    
+
     // Function to draw a road at given position
     function drawRoad(x, z, w, len, ry, opacity) {
       opacity = opacity || 1;
@@ -2203,7 +2492,7 @@ function drawMinimap() {
       ctx.fillRect((-len * S) / 2, -0.4, len * S, 0.8);
       ctx.restore();
     }
-    
+
     // Draw currently visible roads at full opacity (inside clipping)
     for (var i = 0; i < roadDefs.length; i++) {
       var rd = roadDefs[i];
@@ -2224,7 +2513,7 @@ function drawMinimap() {
   if (isDepressiveDiscovery) {
     ctx.restore(); // Restore from clipping
     var circleRadius = visibilityRadius * S;
-    
+
     // Draw circle outline showing visible area
     ctx.strokeStyle = "rgba(255,255,255,0.15)";
     ctx.lineWidth = 1;
@@ -2237,12 +2526,20 @@ function drawMinimap() {
   if (isDepressiveDiscovery && exploredAreaCanvas && exploredAreaCtx) {
     var circleRadius = visibilityRadius * S;
     exploredAreaCtx.beginPath();
-    exploredAreaCtx.arc(wx(playerWorldX), wz(playerWorldZ), circleRadius, 0, Math.PI * 2);
+    exploredAreaCtx.arc(
+      wx(playerWorldX),
+      wz(playerWorldZ),
+      circleRadius,
+      0,
+      Math.PI * 2,
+    );
     exploredAreaCtx.fill();
   }
 
   // ── Active checkpoint marker — pulsing ring (visibility based on episode config) ──
-  var showCheckpoints = (!episodeConfig || episodeConfig.showCheckpoints !== false) && currentLevel !== "tutorial";
+  var showCheckpoints =
+    (!episodeConfig || episodeConfig.showCheckpoints !== false) &&
+    currentLevel !== "tutorial";
   if (missionActive && !missionComplete && showCheckpoints) {
     var cp = CHECKPOINTS[currentCP];
     var pulse = 0.55 + 0.45 * Math.abs(Math.sin(Date.now() * 0.003));
@@ -2313,13 +2610,16 @@ function drawMinimap() {
     ctx.fillText("W", 7, H / 2);
     ctx.fillText("E", W - 7, H / 2);
   }
+
+  // Restore canvas state from rotation (if rotation was applied)
+  ctx.restore();
 }
 
 // ─── CAR PHYSICS ──────────────────────────────────────────────────────────────
 function updateCar(dt) {
   var boost = keys["ShiftLeft"] || keys["ShiftRight"];
   var maxSpeed = boost ? 0.55 : 0.32;
-  
+
   // During depressive episode, significantly reduce car speed
   // Apply episode-specific speed multiplier
   var episodeConfig = null;
@@ -2330,11 +2630,11 @@ function updateCar(dt) {
   } else if (currentEpisode === "euthymia") {
     episodeConfig = EUTHYMIA_EPISODE;
   }
-  
+
   if (episodeConfig && episodeConfig.carSpeedMultiplier) {
     maxSpeed *= episodeConfig.carSpeedMultiplier;
   }
-  
+
   var accel = 0.018;
   var brakeForce = 0.025;
   var friction = 0.012;
@@ -2385,11 +2685,11 @@ function updateCamera() {
   offset.applyQuaternion(car.quaternion);
   var target = car.position.clone().add(offset);
   camera.position.lerp(target, 0.07); // smooth follow with slight lag
-  
+
   // Add camera shake during episodes
   if (fisheyeMaterial && fisheyeMaterial.uniforms) {
     var time = fisheyeMaterial.uniforms.time.value;
-    
+
     // Get episode configuration
     var episodeConfig = null;
     if (currentEpisode === "depressive") {
@@ -2399,18 +2699,18 @@ function updateCamera() {
     } else if (currentEpisode === "euthymia") {
       episodeConfig = EUTHYMIA_EPISODE;
     }
-    
+
     if (episodeConfig && episodeConfig.cameraShakeStrength > 0) {
       var shakeStrength = episodeConfig.cameraShakeStrength;
       var freqs = episodeConfig.cameraShakeFrequencies;
-      
+
       // Apply sinusoidal camera shake based on episode configuration // [1]
       camera.position.x += Math.sin(time * freqs.x) * shakeStrength; // [1]
       camera.position.y += Math.sin(time * freqs.y + 0.5) * shakeStrength; // [1]
       camera.position.z += Math.sin(time * freqs.z + 1.0) * shakeStrength; // [1]
     }
   }
-  
+
   camera.lookAt(car.position.clone().add(new THREE.Vector3(0, 1.2, 0)));
 }
 
@@ -2423,7 +2723,7 @@ function updateEpisodeEffects() {
   var targetDistortion = 0;
   var targetChromaticStrength = 0;
   var targetAmbientIntensity = 0.6;
-  
+
   // Use episode configuration files
   var episodeConfig = null;
   if (currentEpisode === "depressive") {
@@ -2433,7 +2733,7 @@ function updateEpisodeEffects() {
   } else if (currentEpisode === "euthymia") {
     episodeConfig = EUTHYMIA_EPISODE;
   }
-  
+
   // Apply episode-specific parameters if available
   if (episodeConfig) {
     targetFOV = episodeConfig.fov;
@@ -2442,33 +2742,37 @@ function updateEpisodeEffects() {
     targetChromaticStrength = episodeConfig.chromaticStrength;
     targetAmbientIntensity = episodeConfig.ambientIntensity;
   }
-  
+
   // Smoothly transition the sky color
   if (scene.background) {
     var currentColor = scene.background;
     var targetColor = new THREE.Color(targetSkyColor);
     currentColor.lerp(targetColor, 0.05); // smooth transition
   }
-  
+
   // Smoothly transition the camera FOV
   if (camera && Math.abs(camera.fov - targetFOV) > 0.1) {
     camera.fov += (targetFOV - camera.fov) * 0.05;
     camera.updateProjectionMatrix();
   }
-  
+
   // Adjust ambient light intensity during episodes
   if (ambientLight) {
-    ambientLight.intensity += (targetAmbientIntensity - ambientLight.intensity) * 0.05;
+    ambientLight.intensity +=
+      (targetAmbientIntensity - ambientLight.intensity) * 0.05;
   }
-  
+
   // Update fisheye distortion strength and chromatic aberration
   if (fisheyeMaterial && fisheyeMaterial.uniforms) {
     var currentStrength = fisheyeMaterial.uniforms.strength.value;
-    fisheyeMaterial.uniforms.strength.value += (targetDistortion - currentStrength) * 0.1;
-    
-    var currentChromaticStrength = fisheyeMaterial.uniforms.chromaticStrength.value;
-    fisheyeMaterial.uniforms.chromaticStrength.value += (targetChromaticStrength - currentChromaticStrength) * 0.1;
-    
+    fisheyeMaterial.uniforms.strength.value +=
+      (targetDistortion - currentStrength) * 0.1;
+
+    var currentChromaticStrength =
+      fisheyeMaterial.uniforms.chromaticStrength.value;
+    fisheyeMaterial.uniforms.chromaticStrength.value +=
+      (targetChromaticStrength - currentChromaticStrength) * 0.1;
+
     // Reset shader time when leaving depressive episode for clean transitions
     if (currentEpisode !== "depressive" && currentStrength > 0.01) {
       // Shader is active but shouldn't be, no reset needed yet - it will fade out
@@ -2487,12 +2791,13 @@ function animate() {
   updateCar(dt);
   updateCamera();
   updateLevel1Episodes(); // Update unpredictable episodes for Level 1
+  updateLevel2Episodes(); // Update unpredictable manic episodes for Level 2
   updateEpisodeEffects();
   updateMarkers(dt);
   updateMissionHUD();
   checkCheckpoints();
   drawMinimap();
-  
+
   // Rotate minimap based on episode configuration
   var minimapElement = document.getElementById("minimap");
   if (minimapElement) {
@@ -2504,18 +2809,11 @@ function animate() {
     } else if (currentEpisode === "euthymia") {
       episodeConfig = EUTHYMIA_EPISODE;
     }
-    
-    if (episodeConfig && episodeConfig.minimapRotation) {
-      // Apply rotation speed from episode config
-      var rotationSpeed = episodeConfig.rotationSpeed || 0.06;
-      var rotation = (Date.now() * rotationSpeed) % 360;
-      minimapElement.style.transform = "rotate(" + rotation + "deg)";
-    } else {
-      // No rotation for other episodes
-      minimapElement.style.transform = "rotate(0deg)";
-    }
+
+    // Note: Minimap rotation is now applied via canvas context inside drawMinimap()
+    // This ensures the grid content rotates, not the container element
   }
-  
+
   renderWithEffects();
 }
 
@@ -2523,7 +2821,7 @@ function onResize() {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
-  
+
   // Resize post-processing render target
   if (fisheyeRenderTarget) {
     fisheyeRenderTarget.setSize(window.innerWidth, window.innerHeight);
