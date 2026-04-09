@@ -53,7 +53,7 @@ const colliders = [];
 // padding adds a small margin so the car stops just before the visual edge,
 // giving a forgiving Roblox-style feel.
 function addCollider(cx, cz, hw, hd, padding) {
-  var p = padding === undefined ? 0.3 : padding;
+  var p = padding === undefined ? 0.05 : padding;
   colliders.push({ cx: cx, cz: cz, hw: hw + p, hd: hd + p });
 }
 
@@ -84,7 +84,7 @@ function resolveCollisions() {
       }
     }
   }
-  
+
   // STATE TOGGLE: Only play sound when transitioning FROM "not colliding" TO "colliding"
   if (collisionOccurred && !isCurrentlyColliding) {
     // Collision JUST started
@@ -162,6 +162,40 @@ let discoveredRoads = {}; // { "0,-85": true, ... } — keyed by "x,z" road cent
 // Off-screen canvas to track explored areas during depressive episode
 let exploredAreaCanvas = null;
 let exploredAreaCtx = null;
+
+// ─── GLOBAL ENTER KEY LISTENER ────────────────────────────────────────────────
+// This listener is registered globally so it works on the start screen
+// before init() is called
+document.addEventListener("keydown", function (e) {
+  if (e.code === "Enter") {
+    // Check if start screen is visible
+    if (document.getElementById("start-screen").style.display !== "none") {
+      playMenuSound();
+      startGame();
+    } else {
+      // Check if any completion screen is visible and click the primary button
+      var completionScreens = [
+        "tutorial-completion",
+        "level1-completion",
+        "level2-completion",
+        "level3-completion",
+        "level-timeout",
+      ];
+
+      for (var i = 0; i < completionScreens.length; i++) {
+        var screenId = completionScreens[i];
+        var screen = document.getElementById(screenId);
+        if (screen && screen.classList.contains("show")) {
+          var primaryBtn = screen.querySelector(".tutorial-btn.primary");
+          if (primaryBtn) {
+            primaryBtn.click();
+          }
+          break;
+        }
+      }
+    }
+  }
+});
 
 function startTutorialFlow() {
   if (currentLevel !== "tutorial") return;
@@ -538,8 +572,7 @@ function generateLevel3EpisodeSchedule() {
   // Generate random durations for manic episodes
   for (var i = 0; i < manicCount; i++) {
     var randomDuration =
-      manicDurationMin +
-      Math.random() * (manicDurationMax - manicDurationMin);
+      manicDurationMin + Math.random() * (manicDurationMax - manicDurationMin);
     level3ManicDurations.push(randomDuration);
   }
 
@@ -767,10 +800,7 @@ function updateLevel3Episodes() {
     var nextDepDuration = level3DepressiveDurations[level3DepressiveIndex];
     var nextDepEnd = nextDepStart + nextDepDuration;
 
-    if (
-      missionElapsedMs >= nextDepStart &&
-      missionElapsedMs < nextDepEnd
-    ) {
+    if (missionElapsedMs >= nextDepStart && missionElapsedMs < nextDepEnd) {
       // We're within a depressive episode
       if (currentEpisode !== "depressive") {
         console.log(
@@ -793,7 +823,10 @@ function updateLevel3Episodes() {
         exploredAreaCtx = exploredAreaCanvas.getContext("2d");
         exploredAreaCtx.fillStyle = "rgba(100, 140, 180, 0.5)";
       }
-    } else if (missionElapsedMs >= nextDepEnd && currentEpisode === "depressive") {
+    } else if (
+      missionElapsedMs >= nextDepEnd &&
+      currentEpisode === "depressive"
+    ) {
       // Exit depressive episode
       console.log(
         "🟢 EXITING DEPRESSIVE EPISODE " +
@@ -828,10 +861,7 @@ function updateLevel3Episodes() {
     var nextManicDuration = level3ManicDurations[level3ManicIndex];
     var nextManicEnd = nextManicStart + nextManicDuration;
 
-    if (
-      missionElapsedMs >= nextManicStart &&
-      missionElapsedMs < nextManicEnd
-    ) {
+    if (missionElapsedMs >= nextManicStart && missionElapsedMs < nextManicEnd) {
       // We're within a manic episode
       if (currentEpisode !== "manic") {
         console.log(
@@ -1031,16 +1061,19 @@ function initAudio() {
   gameoverSound = document.getElementById("gameover-sound");
   winSound = document.getElementById("win-sound");
   menuSound = document.getElementById("menu-sound");
-  
+
   // Debug: Log audio element status
   console.log("🔊 Audio System Initialized:");
-  console.log("   Background Music:", backgroundMusic ? "✓ Found" : "✗ Not found");
+  console.log(
+    "   Background Music:",
+    backgroundMusic ? "✓ Found" : "✗ Not found",
+  );
   console.log("   Bump Sound:", bumpSound ? "✓ Found" : "✗ Not found");
   console.log("   Engine Sound:", engineSound ? "✓ Found" : "✗ Not found");
   console.log("   Gameover Sound:", gameoverSound ? "✓ Found" : "✗ Not found");
   console.log("   Win Sound:", winSound ? "✓ Found" : "✗ Not found");
   console.log("   Menu Sound:", menuSound ? "✓ Found" : "✗ Not found");
-  
+
   // Set reasonable volume levels
   if (backgroundMusic) {
     backgroundMusic.volume = 0.4;
@@ -1066,7 +1099,7 @@ function initAudio() {
     menuSound.volume = 0.5;
     console.log("   Menu Sound Volume: 0.5");
   }
-  
+
   // Attach menu sound to all buttons (UI elements only)
   attachMenuSoundToButtons();
 }
@@ -1074,20 +1107,20 @@ function initAudio() {
 // Attach menu/button press sound to all HTML buttons
 function attachMenuSoundToButtons() {
   if (!menuSound) return;
-  
+
   // Select all button elements in the DOM
-  var buttons = document.querySelectorAll('button');
-  
-  buttons.forEach(function(button) {
-    button.addEventListener('click', function() {
+  var buttons = document.querySelectorAll("button");
+
+  buttons.forEach(function (button) {
+    button.addEventListener("click", function () {
       // Play menu sound when button is clicked
       menuSound.currentTime = 0;
-      menuSound.play().catch(function(error) {
+      menuSound.play().catch(function (error) {
         console.log("❌ Menu sound play failed:", error);
       });
     });
   });
-  
+
   console.log("🎵 Menu sound attached to " + buttons.length + " buttons");
 }
 
@@ -1097,16 +1130,20 @@ function playBackgroundMusic() {
     console.log("▶️ Playing background music");
     backgroundMusic.currentTime = 0;
     backgroundMusic.loop = true; // Enable seamless looping
-    
+
     // Handle seamless looping by resetting when approaching end
-    backgroundMusic.addEventListener("ended", function() {
-      backgroundMusic.currentTime = 0;
-      backgroundMusic.play().catch(function(error) {
-        console.log("❌ Background music replay failed:", error);
-      });
-    }, { once: false });
-    
-    backgroundMusic.play().catch(function(error) {
+    backgroundMusic.addEventListener(
+      "ended",
+      function () {
+        backgroundMusic.currentTime = 0;
+        backgroundMusic.play().catch(function (error) {
+          console.log("❌ Background music replay failed:", error);
+        });
+      },
+      { once: false },
+    );
+
+    backgroundMusic.play().catch(function (error) {
       console.log("❌ Background music autoplay blocked:", error);
     });
   }
@@ -1133,7 +1170,7 @@ function updateMusicSpeed() {
     backgroundMusic.playbackRate = 1.0; // Normal speed in euthymia
     console.log("🎵 Music speed: 1.0x (euthymia)");
   }
-  
+
   // Apply same playback rate to engine and bump sounds for consistency
   updateSoundEffectsSpeed();
 }
@@ -1160,7 +1197,7 @@ function playBumpSound() {
   if (!bumpSound) return;
   console.log("💥 Playing bump sound");
   bumpSound.currentTime = 0;
-  bumpSound.play().catch(function(error) {
+  bumpSound.play().catch(function (error) {
     console.log("❌ Bump sound play failed:", error);
   });
 }
@@ -1170,7 +1207,7 @@ function playEngineSound() {
   if (!engineSound) return;
   console.log("⚡ Playing engine sound");
   engineSound.currentTime = 0;
-  engineSound.play().catch(function(error) {
+  engineSound.play().catch(function (error) {
     console.log("❌ Engine sound play failed:", error);
   });
 }
@@ -1180,7 +1217,7 @@ function playGameoverSound() {
   if (gameoverSound) {
     console.log("🎬 Playing gameover sound");
     gameoverSound.currentTime = 0;
-    gameoverSound.play().catch(function(error) {
+    gameoverSound.play().catch(function (error) {
       console.log("❌ Gameover sound play failed:", error);
     });
   }
@@ -1191,7 +1228,7 @@ function playWinSound() {
   if (winSound) {
     console.log("🏆 Playing win sound");
     winSound.currentTime = 0;
-    winSound.play().catch(function(error) {
+    winSound.play().catch(function (error) {
       console.log("❌ Win sound play failed:", error);
     });
   }
@@ -1213,7 +1250,7 @@ function togglePause() {
     pauseMenu.classList.remove("show");
     // Resume background music
     if (backgroundMusic) {
-      backgroundMusic.play().catch(function(error) {
+      backgroundMusic.play().catch(function (error) {
         console.log("Background music resume failed:", error);
       });
     }
@@ -1237,7 +1274,7 @@ function togglePause() {
 function openPauseMenu() {
   var pauseMenu = document.getElementById("pause-menu");
   if (!pauseMenu) return;
-  
+
   var buttonsContainer = pauseMenu.querySelector(".pause-buttons");
   if (!buttonsContainer) {
     // Create buttons container if it doesn't exist
@@ -1248,27 +1285,27 @@ function openPauseMenu() {
       card.appendChild(buttonsContainer);
     }
   }
-  
+
   if (!buttonsContainer) return;
-  
+
   // Clear existing buttons
   buttonsContainer.innerHTML = "";
-  
+
   // Always add Resume Game button
   var resumeBtn = document.createElement("button");
   resumeBtn.className = "pause-btn primary";
   resumeBtn.textContent = "Resume Game";
-  resumeBtn.onclick = function() {
+  resumeBtn.onclick = function () {
     resumeGame();
   };
   buttonsContainer.appendChild(resumeBtn);
-  
+
   // Add Restart Level button only for main levels (not tutorial)
   if (currentLevel !== "tutorial") {
     var restartBtn = document.createElement("button");
     restartBtn.className = "pause-btn";
     restartBtn.textContent = "Restart Level";
-    restartBtn.onclick = function() {
+    restartBtn.onclick = function () {
       restartFromPause();
     };
     buttonsContainer.appendChild(restartBtn);
@@ -1296,17 +1333,18 @@ function restartFromPause() {
 // Refresh the mission panel text — called every frame while mission is active
 function updateMissionHUD() {
   if (!missionActive || missionComplete) return;
-  
+
   // Skip HUD update if paused
   if (gamePaused) return;
-  
+
   missionElapsed = (Date.now() - missionStart) / 1000;
 
   var timerEl = document.getElementById("mission-timer");
 
   // For non-tutorial levels, show countdown timer
   if (currentLevel !== "tutorial") {
-    var levelTimeLimit = currentLevel === "level3" ? 60 : (currentLevel === "level2" ? 45 : 30);
+    var levelTimeLimit =
+      currentLevel === "level3" ? 60 : currentLevel === "level2" ? 45 : 30;
     var timeRemaining = Math.max(0, levelTimeLimit - missionElapsed);
     timerEl.textContent = formatTime(timeRemaining);
     // Flash red when 10 seconds or less remain
@@ -1319,7 +1357,8 @@ function updateMissionHUD() {
 
   // Check for timeout on non-tutorial levels
   if (currentLevel !== "tutorial" && !missionTimeoutShown) {
-    var levelTimeLimit = currentLevel === "level3" ? 60 : (currentLevel === "level2" ? 45 : 30);
+    var levelTimeLimit =
+      currentLevel === "level3" ? 60 : currentLevel === "level2" ? 45 : 30;
     if (missionElapsed >= levelTimeLimit) {
       missionTimeoutShown = true;
       missionActive = false;
@@ -1442,7 +1481,7 @@ function restartMission() {
 
   // Restart background music
   playBackgroundMusic();
-  
+
   resetCar();
   beginMission();
 }
@@ -1476,10 +1515,10 @@ function switchLevel(newLevel) {
   discoveredRoads = {}; // reset discovered roads on minimap
   exploredAreaCanvas = null; // reset explored area map
   exploredAreaCtx = null;
-  
+
   // Restart background music for new level
   playBackgroundMusic();
-  
+
   resetCar();
   beginMission();
   buildCheckpointMarkers(); // Rebuild markers for new checkpoint positions
@@ -1706,7 +1745,7 @@ function playMenuSound() {
   var menu = document.getElementById("menu-sound");
   if (menu) {
     menu.currentTime = 0;
-    menu.play().catch(function(error) {
+    menu.play().catch(function (error) {
       console.log("❌ Menu sound play failed:", error);
     });
   }
@@ -2262,26 +2301,6 @@ function buildDowntown() {
     [14, 14, 6, 6, 38, 0x4466aa],
   ].forEach(function (b) {
     building(b[0], b[1], b[2], b[3], b[4], b[5]);
-  });
-
-  // Fountain
-  cylinder(4, 4, 0.6, 8, 0x888888, 0, 0, 0);
-  addCollider(0, 0, 4, 4); // fountain rim blocks car
-  cylinder(1.5, 1.5, 1.2, 8, 0x6699bb, 0, 0.6, 0);
-
-  // Lampposts — kept only on the outer edges of downtown,
-  // well away from the car spawn at (0, -10) so the player
-  // can drive out freely without clipping a post
-  [
-    [-20, 0],
-    [20, 0],
-    [0, 20],
-    [-30, -30],
-    [30, -30],
-    [-30, 30],
-    [30, 30],
-  ].forEach(function (pos) {
-    lamppost(pos[0], pos[1]);
   });
 
   // Billboards
@@ -3187,13 +3206,13 @@ function drawMinimap() {
 // ─── CAR PHYSICS ──────────────────────────────────────────────────────────────
 function updateCar(dt) {
   var boost = keys["ShiftLeft"] || keys["ShiftRight"];
-  
+
   // Play engine sound when boost starts (transition from not pressing to pressing Shift)
   if (boost && !lastEngineBoostPressed) {
     playEngineSound();
   }
   lastEngineBoostPressed = boost;
-  
+
   var maxSpeed = boost ? 0.55 : 0.32;
 
   // During depressive episode, significantly reduce car speed
@@ -3363,7 +3382,7 @@ function updateEpisodeEffects() {
 function animate() {
   if (!gameRunning) return;
   requestAnimationFrame(animate);
-  
+
   // Skip game logic if paused
   if (!gamePaused) {
     var dt = clock.getDelta();
@@ -3377,7 +3396,7 @@ function animate() {
     updateMissionHUD();
     checkCheckpoints();
   }
-  
+
   drawMinimap();
 
   // Rotate minimap based on episode configuration

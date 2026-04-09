@@ -10,7 +10,15 @@
     <!-- ── START SCREEN ── -->
     <div id="start-screen">
       <h1>A MIND IN MOTION</h1>
-      <button id="start-btn" onclick="playMenuSound(); startGame()">START DRIVING</button>
+      <button
+        id="start-btn"
+        onclick="
+          playMenuSound();
+          startGame();
+        "
+      >
+        START DRIVING
+      </button>
       <p style="margin-top: 20px; font-size: 12px">
         WASD or Arrow Keys · Hold Shift to boost
       </p>
@@ -82,8 +90,12 @@
         <p>You have completed the tutorial</p>
         <p class="tutorial-subtitle">You've learned the basics of the game.</p>
         <div class="tutorial-completion-buttons">
-          <button class="tutorial-btn" onclick="restartMission()">Restart Tutorial</button>
-          <button class="tutorial-btn primary" onclick="switchLevel('level1')">Play Level 1</button>
+          <button class="tutorial-btn" onclick="restartMission()">
+            Restart Tutorial
+          </button>
+          <button class="tutorial-btn primary" onclick="switchLevel('level1')">
+            Play Level 1
+          </button>
         </div>
       </div>
     </div>
@@ -95,8 +107,12 @@
         <p>You have completed LEVEL 1</p>
         <p class="tutorial-subtitle">You're ready for the next challenge.</p>
         <div class="tutorial-completion-buttons">
-          <button class="tutorial-btn" onclick="restartMission()">Replay Level 1</button>
-          <button class="tutorial-btn primary" onclick="switchLevel('level2')">Continue to Level 2</button>
+          <button class="tutorial-btn" onclick="restartMission()">
+            Replay Level 1
+          </button>
+          <button class="tutorial-btn primary" onclick="switchLevel('level2')">
+            Continue to Level 2
+          </button>
         </div>
       </div>
     </div>
@@ -108,8 +124,12 @@
         <p>You have completed LEVEL 2</p>
         <p class="tutorial-subtitle">You're almost at the end.</p>
         <div class="tutorial-completion-buttons">
-          <button class="tutorial-btn" onclick="restartMission()">Replay Level 2</button>
-          <button class="tutorial-btn primary" onclick="switchLevel('level3')">Continue to Level 3</button>
+          <button class="tutorial-btn" onclick="restartMission()">
+            Replay Level 2
+          </button>
+          <button class="tutorial-btn primary" onclick="switchLevel('level3')">
+            Continue to Level 3
+          </button>
         </div>
       </div>
     </div>
@@ -121,8 +141,15 @@
         <p>You have completed LEVEL 3</p>
         <p class="tutorial-subtitle">You've finished the game!</p>
         <div class="tutorial-completion-buttons">
-          <button class="tutorial-btn" onclick="restartMission()">Replay Level 3</button>
-          <button class="tutorial-btn primary" onclick="switchLevel('tutorial')">Return to Tutorial</button>
+          <button class="tutorial-btn" onclick="restartMission()">
+            Replay Level 3
+          </button>
+          <button
+            class="tutorial-btn primary"
+            onclick="switchLevel('tutorial')"
+          >
+            Return to Tutorial
+          </button>
         </div>
       </div>
     </div>
@@ -134,8 +161,12 @@
         <p>You didn't complete this level in time.</p>
         <p class="tutorial-subtitle">Complete the level within 30 seconds!</p>
         <div class="tutorial-completion-buttons">
-          <button class="tutorial-btn" onclick="restartMission()">Retry This Level</button>
-          <button class="tutorial-btn secondary" onclick="goToPreviousLevel()">Go Back to Previous Level</button>
+          <button class="tutorial-btn" onclick="restartMission()">
+            Retry This Level
+          </button>
+          <button class="tutorial-btn secondary" onclick="goToPreviousLevel()">
+            Go Back to Previous Level
+          </button>
         </div>
       </div>
     </div>
@@ -187,7 +218,7 @@
     <script src="levels/level1.js"></script>
     <script src="levels/level2.js"></script>
     <script src="levels/level3.js"></script>
-    
+
     <!-- Episode configurations (must load before sketch.js) -->
     <script src="levels/euthymia.js"></script>
     <script src="levels/depressive.js"></script>

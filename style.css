@@ -437,8 +437,7 @@ body {
   border-radius: 12px;
   cursor: pointer;
   letter-spacing: 0.5px;
-  transition:
-    all 0.15s;
+  transition: all 0.15s;
   pointer-events: all;
 }
 .pause-btn:hover {
@@ -589,7 +588,8 @@ body {
   animation: glow-pulse 1s ease-in-out;
 }
 @keyframes glow-pulse {
-  0%, 100% {
+  0%,
+  100% {
     border-color: rgba(126, 245, 168, 0.45);
     box-shadow:
       0 0 50px rgba(126, 245, 168, 0.18),
@@ -622,5 +622,3 @@ body {
 #mission-focus-overlay.show {
   opacity: 1;
 }
-
-
