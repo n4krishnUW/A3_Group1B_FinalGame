@@ -18,14 +18,6 @@ const LEVEL2 = {
       emoji: "⛽",
     },
     { x: 0, z: -25, r: 12, label: "Downtown", color: 0x4ecdc4, emoji: "🏙️" },
-    {
-      x: 100,
-      z: -30,
-      r: 12,
-      label: "Rocky Hills",
-      color: 0xff9900,
-      emoji: "🏔️",
-    },
   ],
   // Manic episode configuration for Level 2
   episodeCount: 2, // 2 unpredictable manic episodes

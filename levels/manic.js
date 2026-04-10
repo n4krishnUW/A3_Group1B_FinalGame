@@ -34,13 +34,13 @@ const MANIC_EPISODE = {
   },
 
   // Gameplay mechanics
-  carSpeedMultiplier: 5.0, // 500% of normal speed
+  carSpeedMultiplier: 2.0, // 200% of normal speed
 
   // Minimap behavior
   minimapDiscovery: false, // Full minimap visibility
   minimapRotation: true, // Continuous rotation
   rotationSpeed: 0.06, // Degrees per millisecond (~60°/sec)
-  showCheckpoints: false, // Hide checkpoints
+  showCheckpoints: true, // Show checkpoints on map during manic
 
   // Duration (in milliseconds)
   duration: 15000, // 15 seconds

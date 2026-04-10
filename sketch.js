@@ -163,6 +163,10 @@ let discoveredRoads = {}; // { "0,-85": true, ... } — keyed by "x,z" road cent
 let exploredAreaCanvas = null;
 let exploredAreaCtx = null;
 
+// ─── MINIMAP ACCESSIBILITY ────────────────────────────────────────────────────
+// Allow player to toggle minimap rotation (manic state) with 'M' key
+let minimapRotationEnabled = true;
+
 // ─── GLOBAL ENTER KEY LISTENER ────────────────────────────────────────────────
 // This listener is registered globally so it works on the start screen
 // before init() is called
@@ -409,7 +413,7 @@ function generateLevel1EpisodeSchedule() {
   var episodeCount = levelConfig.episodeCount || 3;
   var episodeDurationMin = levelConfig.episodeDurationMin || 2000;
   var episodeDurationMax = levelConfig.episodeDurationMax || 6000;
-  var levelDuration = 30000; // 30 seconds in milliseconds
+  var levelDuration = 60000; // 60 seconds in milliseconds
   var maxGapBetweenEpisodes = 3000; // Maximum 3 seconds between end of one episode and start of next
   var minGapBetweenEpisodes = 0.5 * 1000; // Minimum 0.5 seconds gap for unpredictability
 
@@ -480,7 +484,7 @@ function generateLevel2EpisodeSchedule() {
   var episodeCount = levelConfig.episodeCount || 2;
   var episodeDurationMin = levelConfig.episodeDurationMin || 7000;
   var episodeDurationMax = levelConfig.episodeDurationMax || 15000;
-  var levelDuration = 45000; // 45 seconds in milliseconds for Level 2
+  var levelDuration = 60000; // 60 seconds in milliseconds for Level 2
   var maxGapBetweenEpisodes = 3000; // Maximum 3 seconds between end of one episode and start of next
   var minGapBetweenEpisodes = 0.5 * 1000; // Minimum 0.5 seconds gap for unpredictability
 
@@ -1343,8 +1347,7 @@ function updateMissionHUD() {
 
   // For non-tutorial levels, show countdown timer
   if (currentLevel !== "tutorial") {
-    var levelTimeLimit =
-      currentLevel === "level3" ? 60 : currentLevel === "level2" ? 45 : 30;
+    var levelTimeLimit = 60; // 60 seconds for all levels (tutorial, level1, level2, level3)
     var timeRemaining = Math.max(0, levelTimeLimit - missionElapsed);
     timerEl.textContent = formatTime(timeRemaining);
     // Flash red when 10 seconds or less remain
@@ -1357,8 +1360,7 @@ function updateMissionHUD() {
 
   // Check for timeout on non-tutorial levels
   if (currentLevel !== "tutorial" && !missionTimeoutShown) {
-    var levelTimeLimit =
-      currentLevel === "level3" ? 60 : currentLevel === "level2" ? 45 : 30;
+    var levelTimeLimit = 60; // 60 seconds for all levels
     if (missionElapsed >= levelTimeLimit) {
       missionTimeoutShown = true;
       missionActive = false;
@@ -1872,6 +1874,14 @@ function init() {
         currentEpisode = "euthymia";
         console.log("🔓 Manic episode unlocked - reset to euthymia");
       }
+    }
+    // Accessibility: M to toggle minimap rotation (useful during manic episodes)
+    if (e.code === "KeyM" || e.code === "KeyM") {
+      minimapRotationEnabled = !minimapRotationEnabled;
+      console.log(
+        "🗺️ Minimap rotation " +
+          (minimapRotationEnabled ? "enabled" : "disabled"),
+      );
     }
     // Track tutorial key presses for WASD and Shift
     if (tutorialActive && !tutorialCompleted) {
@@ -2800,7 +2810,11 @@ function drawMinimap() {
   ctx.save();
 
   // Apply rotation to canvas grid (not the container)
-  if (episodeConfig && episodeConfig.minimapRotation) {
+  if (
+    episodeConfig &&
+    episodeConfig.minimapRotation &&
+    minimapRotationEnabled
+  ) {
     var rotationSpeed = episodeConfig.rotationSpeed || 0.06;
     var rotationDegrees = (Date.now() * rotationSpeed) % 360;
     var rotationRadians = (rotationDegrees * Math.PI) / 180; // Convert to radians
