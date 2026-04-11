@@ -495,6 +495,7 @@ body {
     0 0 50px rgba(126, 245, 168, 0.18),
     0 0 0 1px rgba(126, 245, 168, 0.08),
     0 12px 48px rgba(0, 0, 0, 0.7);
+  max-width: 50%;
 }
 .tutorial-notification.show {
   opacity: 1;
@@ -620,5 +621,23 @@ body {
   transition: opacity 0.3s;
 }
 #mission-focus-overlay.show {
+  opacity: 1;
+}
+
+/* ── MINIMAP FOCUS OVERLAY ── */
+#minimap-focus-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 110;
+  background: radial-gradient(
+    circle at bottom right,
+    rgba(0, 0, 0, 0) 250px,
+    rgba(0, 0, 0, 0.7) 800px
+  );
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+#minimap-focus-overlay.show {
   opacity: 1;
 }

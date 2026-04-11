@@ -108,6 +108,9 @@ let missionElapsed = 0; // seconds elapsed (updated each frame)
 let missionTimeoutShown = false; // track if 30-second timeout popup has been shown
 let cpMarkers = []; // Three.js groups — one beacon per checkpoint
 let markerRotation = 0; // accumulates each frame for spinning animation
+let tutorialCheckpointJustCollected = false; // Prevent multiple triggers on same checkpoint
+let tutorialCheckpointGoalStartTime = null; // When current checkpoint-goal step was entered (for visibility delay)
+let tutorialStepWhenCheckpointGoalStarted = -1; // Track which step index started the checkpoint-goal delay
 
 // ─── TUTORIAL SYSTEM ──────────────────────────────────────────────────────────
 let tutorialActive = false;
@@ -319,6 +322,18 @@ function showNextTutorialStep() {
         }
       }, 350);
     }, step.duration || 3000);
+  } else if (step.type === "glow-minimap") {
+    glowMinimapPanel();
+    setTimeout(function () {
+      notif.classList.remove("show");
+      tutorialStepIndex++;
+      // Wait for CSS transition (0.3s) to complete before showing next step
+      setTimeout(function () {
+        if (tutorialActive && !tutorialCompleted) {
+          showNextTutorialStep();
+        }
+      }, 350);
+    }, step.duration || 3000);
   } else if (step.type === "wait-keys") {
     // Keep message visible until keys are pressed, handled by checkTutorialKeyCompletion()
   } else if (step.type === "state-message") {
@@ -335,6 +350,10 @@ function showNextTutorialStep() {
         }, 350);
       }
     }, step.duration || 3000);
+  } else if (step.type === "checkpoint-goal") {
+    // Checkpoint goal step — wait for player to reach checkpoint
+    // Delay timer will be initialized on first frame update in updateMarkers()
+    // The checkCheckpoints() function will advance this when reached
   }
 }
 
@@ -372,6 +391,17 @@ function glowMissionPanel() {
     setTimeout(function () {
       panel.classList.remove("glow");
     }, 5000);
+  }
+}
+
+function glowMinimapPanel() {
+  var overlay = document.getElementById("minimap-focus-overlay");
+
+  if (overlay) {
+    overlay.classList.add("show");
+    setTimeout(function () {
+      overlay.classList.remove("show");
+    }, 3000);
   }
 }
 
@@ -426,7 +456,7 @@ function generateLevel1EpisodeSchedule() {
   }
 
   // Schedule episodes with maximum 3-second gaps between them
-  var currentTime = 0.5 * 1000; // Start first episode at least 0.5 seconds in
+  var currentTime = 2 * 1000; // Start first episode at least 2 seconds in
 
   for (var i = 0; i < episodeCount; i++) {
     // Record start time of this episode
@@ -581,7 +611,7 @@ function generateLevel3EpisodeSchedule() {
   }
 
   // Schedule depressive episodes
-  var currentTime = 1 * 1000; // Start first depressive at 1 second
+  var currentTime = 2 * 1000; // Start first depressive at 2 seconds
   for (var i = 0; i < depressiveCount; i++) {
     level3DepressiveSchedule.push(currentTime);
     currentTime += level3DepressiveDurations[i];
@@ -924,20 +954,14 @@ function updateLevel3Episodes() {
 
 // Spawn 3D beacon markers into the scene (call once, inside init)
 function buildCheckpointMarkers() {
-  // Skip checkpoint markers for tutorial level
-  if (currentLevel === "tutorial") {
-    cpMarkers.forEach(function (marker) {
-      scene.remove(marker);
-    });
-    cpMarkers = [];
-    return;
-  }
-
   // Remove old markers from scene
   cpMarkers.forEach(function (marker) {
     scene.remove(marker);
   });
   cpMarkers = [];
+
+  // For tutorial, only build markers (visibility controlled per frame in updateMarkers)
+  // For other levels, build all markers normally
   CHECKPOINTS.forEach(function (cp, i) {
     var group = new THREE.Group();
 
@@ -993,9 +1017,49 @@ function buildCheckpointMarkers() {
 // Spin diamonds and manage beacon visibility — called every frame
 function updateMarkers(dt) {
   markerRotation += dt * 1.8;
+
+  // Determine which checkpoint should be shown
+  var targetCheckpointIndex = currentCP;
+  var shouldShowCheckpoint = true;
+
+  if (currentLevel === "tutorial" && tutorialActive && !tutorialCompleted) {
+    var tutorialFlow = TUTORIAL_LEVEL.tutorialFlow;
+    var currentStep = tutorialFlow[tutorialStepIndex];
+    // Only show checkpoint during checkpoint-goal steps (with 1 second delay for UX)
+    if (currentStep && currentStep.type === "checkpoint-goal") {
+      // Initialize delay timer on first frame entering this step
+      if (tutorialStepWhenCheckpointGoalStarted !== tutorialStepIndex) {
+        tutorialCheckpointGoalStartTime = Date.now();
+        tutorialStepWhenCheckpointGoalStarted = tutorialStepIndex;
+      }
+
+      var checkpointGoalElapsed = Date.now() - tutorialCheckpointGoalStartTime;
+      if (checkpointGoalElapsed >= 1000) {
+        // After 1 second delay, show the checkpoint
+        targetCheckpointIndex = currentStep.checkpointIndex;
+        shouldShowCheckpoint = true;
+      } else {
+        // Still waiting for delay to complete
+        shouldShowCheckpoint = false;
+      }
+    } else {
+      // Don't show checkpoint for other step types (state-message, wait-keys, glow-mission)
+      shouldShowCheckpoint = false;
+    }
+  }
+
   cpMarkers.forEach(function (group, i) {
-    // Only show the current active destination — everything else hidden
-    if (i !== currentCP || !missionActive || missionComplete) {
+    // Hide checkpoint if:
+    // - Tutorial step is not a checkpoint-goal type or delay not elapsed
+    // - Mission is not active
+    // - Mission is complete
+    // - Marker index doesn't match target
+    if (
+      !shouldShowCheckpoint ||
+      i !== targetCheckpointIndex ||
+      !missionActive ||
+      missionComplete
+    ) {
       group.visible = false;
       return;
     }
@@ -1020,6 +1084,7 @@ function beginMission() {
   missionElapsed = 0;
   missionTimeoutShown = false; // reset timeout flag for new mission
   gamePaused = false; // Reset pause state
+  tutorialCheckpointJustCollected = false; // Reset tutorial checkpoint collection flag
   updateMissionHUD();
 
   // Reset progress dots in the HUD
@@ -1353,9 +1418,9 @@ function updateMissionHUD() {
     // Flash red when 10 seconds or less remain
     timerEl.classList.toggle("urgent", timeRemaining <= 10);
   } else {
-    // Tutorial: show elapsed time as normal
+    // Tutorial: show elapsed time as normal, no urgent indicator
     timerEl.textContent = formatTime(missionElapsed);
-    timerEl.classList.toggle("urgent", missionElapsed > 90);
+    timerEl.classList.remove("urgent");
   }
 
   // Check for timeout on non-tutorial levels
@@ -1370,9 +1435,36 @@ function updateMissionHUD() {
     }
   }
 
-  // In tutorial, hide checkpoint destination and distance
-  if (currentLevel !== "tutorial") {
-    var cp = CHECKPOINTS[currentCP];
+  // Show checkpoint destination during normal gameplay and tutorial checkpoint goals
+  var showCheckpointHUD = currentLevel !== "tutorial";
+  var checkpointIndexToShow = currentCP;
+
+  if (currentLevel === "tutorial" && tutorialActive && !tutorialCompleted) {
+    var tutorialFlow = TUTORIAL_LEVEL.tutorialFlow;
+    var currentStep = tutorialFlow[tutorialStepIndex];
+    if (currentStep && currentStep.type === "checkpoint-goal") {
+      // Initialize delay timer on first frame entering this step (same as 3D markers)
+      if (tutorialStepWhenCheckpointGoalStarted !== tutorialStepIndex) {
+        tutorialCheckpointGoalStartTime = Date.now();
+        tutorialStepWhenCheckpointGoalStarted = tutorialStepIndex;
+      }
+
+      // Check 1 second delay before showing checkpoint in HUD
+      var checkpointGoalElapsed = Date.now() - tutorialCheckpointGoalStartTime;
+      if (checkpointGoalElapsed >= 1000) {
+        showCheckpointHUD = true;
+        checkpointIndexToShow = currentStep.checkpointIndex;
+      } else {
+        showCheckpointHUD = false;
+      }
+    } else {
+      // Don't show checkpoint for other tutorial step types
+      showCheckpointHUD = false;
+    }
+  }
+
+  if (showCheckpointHUD) {
+    var cp = CHECKPOINTS[checkpointIndexToShow];
     var dx = car.position.x - cp.x;
     var dz = car.position.z - cp.z;
     var dist = Math.round(Math.sqrt(dx * dx + dz * dz));
@@ -1380,7 +1472,7 @@ function updateMissionHUD() {
     document.getElementById("mission-objective").innerHTML =
       "Drive to <strong>" + cp.emoji + " " + cp.label + "</strong>";
   } else {
-    // Tutorial mode: show generic message
+    // Tutorial mode (before checkpoint goals): show generic message
     document.getElementById("mission-objective").innerHTML =
       "Follow the tutorial instructions";
   }
@@ -1398,7 +1490,36 @@ function updateLevelDisplay() {
 // Test whether the car has entered the active checkpoint's trigger radius
 function checkCheckpoints() {
   if (!missionActive || missionComplete) return;
-  if (currentLevel === "tutorial") return; // Skip checkpoint detection during tutorial
+
+  // Tutorial mode: check if we're in a checkpoint-goal step
+  if (currentLevel === "tutorial") {
+    if (tutorialActive && !tutorialCompleted) {
+      var tutorialFlow = TUTORIAL_LEVEL.tutorialFlow;
+      var currentStep = tutorialFlow[tutorialStepIndex];
+
+      if (currentStep && currentStep.type === "checkpoint-goal") {
+        // Get the target checkpoint for this step
+        var targetCheckpointIndex = currentStep.checkpointIndex;
+        var cp = CHECKPOINTS[targetCheckpointIndex];
+        var dx = car.position.x - cp.x;
+        var dz = car.position.z - cp.z;
+        var dist = Math.sqrt(dx * dx + dz * dz);
+
+        if (dist < cp.r) {
+          // Only trigger if we haven't already collected this checkpoint
+          if (!tutorialCheckpointJustCollected) {
+            collectCheckpointTutorial(targetCheckpointIndex);
+            tutorialCheckpointJustCollected = true;
+          }
+        } else {
+          // Player has left checkpoint radius, allow collection again
+          tutorialCheckpointJustCollected = false;
+        }
+      }
+    }
+    return;
+  }
+
   var cp = CHECKPOINTS[currentCP];
   var dx = car.position.x - cp.x;
   var dz = car.position.z - cp.z;
@@ -1434,6 +1555,35 @@ function collectCheckpoint() {
     if (nextDot) nextDot.classList.add("active");
     updateMissionHUD();
   }
+}
+
+function collectCheckpointTutorial(checkpointIndex) {
+  // Green screen flash
+  var flash = document.getElementById("cp-flash");
+  flash.classList.add("flash");
+  setTimeout(function () {
+    flash.classList.remove("flash");
+  }, 300);
+
+  // Play success sound
+  playWinSound();
+
+  // Advance to next tutorial step after the flash
+  setTimeout(function () {
+    if (tutorialActive && !tutorialCompleted) {
+      var notif = document.getElementById("tutorial-notification");
+      if (notif) {
+        notif.classList.remove("show");
+      }
+      tutorialStepIndex++;
+      // Wait for CSS transition (0.3s) to complete before showing next step
+      setTimeout(function () {
+        if (tutorialActive && !tutorialCompleted) {
+          showNextTutorialStep();
+        }
+      }, 350);
+    }
+  }, 300);
 }
 
 function showWinScreen() {
@@ -3140,10 +3290,36 @@ function drawMinimap() {
 
   // ── Active checkpoint marker — pulsing ring (visibility based on episode config) ──
   var showCheckpoints =
-    (!episodeConfig || episodeConfig.showCheckpoints !== false) &&
-    currentLevel !== "tutorial";
+    !episodeConfig || episodeConfig.showCheckpoints !== false;
+
+  // Determine which checkpoint to show on minimap
+  var minimapCheckpointIndex = currentCP;
+  if (currentLevel === "tutorial" && tutorialActive && !tutorialCompleted) {
+    var tutorialFlow = TUTORIAL_LEVEL.tutorialFlow;
+    var currentStep = tutorialFlow[tutorialStepIndex];
+    if (currentStep && currentStep.type === "checkpoint-goal") {
+      // Initialize delay timer on first frame entering this step (same as 3D markers)
+      if (tutorialStepWhenCheckpointGoalStarted !== tutorialStepIndex) {
+        tutorialCheckpointGoalStartTime = Date.now();
+        tutorialStepWhenCheckpointGoalStarted = tutorialStepIndex;
+      }
+
+      // Check 1 second delay before showing checkpoint
+      var checkpointGoalElapsed = Date.now() - tutorialCheckpointGoalStartTime;
+      if (checkpointGoalElapsed >= 1000) {
+        minimapCheckpointIndex = currentStep.checkpointIndex;
+        showCheckpoints = true;
+      } else {
+        showCheckpoints = false;
+      }
+    } else {
+      // Hide checkpoints for other tutorial step types
+      showCheckpoints = false;
+    }
+  }
+
   if (missionActive && !missionComplete && showCheckpoints) {
-    var cp = CHECKPOINTS[currentCP];
+    var cp = CHECKPOINTS[minimapCheckpointIndex];
     var pulse = 0.55 + 0.45 * Math.abs(Math.sin(Date.now() * 0.003));
     ctx.beginPath();
     ctx.arc(wx(cp.x), wz(cp.z), 7 * pulse, 0, Math.PI * 2);
@@ -3227,7 +3403,7 @@ function updateCar(dt) {
   }
   lastEngineBoostPressed = boost;
 
-  var maxSpeed = boost ? 0.55 : 0.32;
+  var maxSpeed = 0.32;
 
   // During depressive episode, significantly reduce car speed
   // Apply episode-specific speed multiplier
@@ -3243,6 +3419,19 @@ function updateCar(dt) {
   if (episodeConfig && episodeConfig.carSpeedMultiplier) {
     maxSpeed *= episodeConfig.carSpeedMultiplier;
   }
+
+  // Apply episode-specific boost multipliers
+  var boostMultiplier = 1.0;
+  if (boost) {
+    if (currentEpisode === "depressive") {
+      boostMultiplier = 1.71875; // Standard boost multiplier
+    } else if (currentEpisode === "manic") {
+      boostMultiplier = 1.71875; // Standard boost multiplier
+    } else if (currentEpisode === "euthymia") {
+      boostMultiplier = 2.0; // Faster boost in euthymia
+    }
+  }
+  maxSpeed *= boostMultiplier;
 
   var accel = 0.018;
   var brakeForce = 0.025;
@@ -3391,6 +3580,9 @@ function updateEpisodeEffects() {
     }
   }
 }
+
+// ─── DEBUG DISPLAY ────────────────────────────────────────────────────────────
+// Debug display removed
 
 // ─── MAIN LOOP ────────────────────────────────────────────────────────────────
 function animate() {

@@ -12,16 +12,16 @@
 const EUTHYMIA_EPISODE = {
   name: "euthymia",
   displayName: "EUTHYMIA",
-  
+
   // Visual effects
   skyColor: 0x87ceeb, // Bright sky blue
   fov: 75, // Normal field of view
   ambientIntensity: 0.6, // Normal lighting
-  
+
   // Shader effects
   distortion: 0, // No barrel distortion
   chromaticStrength: 0, // No chromatic aberration
-  
+
   // Camera behavior
   cameraShakeStrength: 0, // No camera shake
   cameraShakeFrequencies: {
@@ -29,15 +29,15 @@ const EUTHYMIA_EPISODE = {
     y: 0,
     z: 0,
   },
-  
+
   // Gameplay mechanics
   carSpeedMultiplier: 1.0, // Normal speed
-  
+
   // Minimap behavior
   minimapDiscovery: false, // Full visibility
   minimapRotation: false, // No rotation
   showCheckpoints: true, // Show checkpoints
-  
+
   // Duration (in milliseconds)
   duration: 10000, // 10 seconds
 };
