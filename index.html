@@ -216,12 +216,6 @@
           <button class="tutorial-btn" onclick="switchLevel('level3')">
             Level 3
           </button>
-          <button
-            class="tutorial-btn primary"
-            onclick="switchLevel('tutorial')"
-          >
-            Return to Title Screen
-          </button>
         </div>
       </div>
     </div>
@@ -268,27 +262,35 @@
     <!-- Audio Elements -->
     <audio id="background-music" loop preload="auto">
       <source src="assets/backgroundmusic.mp3" type="audio/mpeg" />
+      // [11]
     </audio>
     <audio id="bump-sound" preload="auto">
       <source src="assets/bump.mp3" type="audio/mpeg" />
+      // [3]
     </audio>
     <audio id="engine-sound" loop preload="auto">
       <source src="assets/newengine.mp3" type="audio/mpeg" />
+      // [10]
     </audio>
     <audio id="gameover-sound" preload="auto">
       <source src="assets/newlosesound.wav" type="audio/wav" />
+      // [9]
     </audio>
     <audio id="win-sound" preload="auto">
       <source src="assets/newwinsound.wav" type="audio/wav" />
+      // [7]
     </audio>
     <audio id="menu-sound" preload="auto">
       <source src="assets/buttonclick.mp3" type="audio/mpeg" />
+      // [5]
     </audio>
     <audio id="car-idle-sound" loop preload="auto">
       <source src="assets/caridle.mp3" type="audio/mpeg" />
+      // [2]
     </audio>
     <audio id="checkpoint-sound" preload="auto">
       <source src="assets/checkpoint.wav" type="audio/wav" />
+      // [8]
     </audio>
 
     <!-- Level definitions (must load before sketch.js) -->

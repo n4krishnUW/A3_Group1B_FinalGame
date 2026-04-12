@@ -154,7 +154,7 @@ let engineSound = null;
 let gameoverSound = null;
 let winSound = null;
 let menuSound = null;
-let carIdleSound = null;
+let carIdleSound = null; // [2]
 let checkpointSound = null;
 let carIdleSoundTargetVolume = 0; // Target volume for smooth fading
 let engineSoundTargetVolume = 0; // Target volume for smooth engine fade based on Shift key
@@ -1147,67 +1147,75 @@ function initAudio() {
   gameoverSound = document.getElementById("gameover-sound");
   winSound = document.getElementById("win-sound");
   menuSound = document.getElementById("menu-sound");
-  carIdleSound = document.getElementById("car-idle-sound");
-  checkpointSound = document.getElementById("checkpoint-sound");
+  carIdleSound = document.getElementById("car-idle-sound"); // [2]
+  checkpointSound = document.getElementById("checkpoint-sound"); // [8]
 
   // Debug: Log audio element status
   console.log("🔊 Audio System Initialized:");
   console.log(
-    "   Background Music:",
+    "   Background Music:", // [11]
     backgroundMusic ? "✓ Found" : "✗ Not found",
   );
-  console.log("   Bump Sound:", bumpSound ? "✓ Found" : "✗ Not found");
-  console.log("   Engine Sound:", engineSound ? "✓ Found" : "✗ Not found");
-  console.log("   Gameover Sound:", gameoverSound ? "✓ Found" : "✗ Not found");
-  console.log("   Win Sound:", winSound ? "✓ Found" : "✗ Not found");
-  console.log("   Menu Sound:", menuSound ? "✓ Found" : "✗ Not found");
-  console.log("   Car Idle Sound:", carIdleSound ? "✓ Found" : "✗ Not found");
+  console.log("   Bump Sound:", bumpSound ? "✓ Found" : "✗ Not found"); // [3]
+  console.log("   Engine Sound:", engineSound ? "✓ Found" : "✗ Not found"); // [10]
+  console.log("   Gameover Sound:", gameoverSound ? "✓ Found" : "✗ Not found"); // [9]
+  console.log("   Win Sound:", winSound ? "✓ Found" : "✗ Not found"); // [7]
+  console.log("   Menu Sound:", menuSound ? "✓ Found" : "✗ Not found"); // [5]
+  console.log("   Car Idle Sound:", carIdleSound ? "✓ Found" : "✗ Not found"); // [2]
   console.log(
-    "   Checkpoint Sound:",
+    "   Checkpoint Sound:", // [8]
     checkpointSound ? "✓ Found" : "✗ Not found",
   );
 
   // Set reasonable volume levels
   if (backgroundMusic) {
+    // [11]
     backgroundMusic.volume = 0.4;
-    console.log("   Background Music Volume: 0.4");
+    console.log("   Background Music Volume: 0.4"); // [11]
   }
   if (bumpSound) {
+    // [3]
     bumpSound.volume = 0.45;
-    console.log("   Bump Sound Volume: 0.45");
+    console.log("   Bump Sound Volume: 0.45"); // [3]
   }
   if (engineSound) {
+    // [10]
     engineSound.volume = 0.25;
     engineSound.loop = true; // Enable looping for continuous engine sound
     // Start playing silently (volume = 0) so we can fade in/out smoothly
     engineSound.play().catch(function (error) {
       console.log("Engine sound autoplay blocked:", error);
     });
-    console.log("   Engine Sound Volume: 0.25 (fades with Shift key)");
+    console.log("   Engine Sound Volume: 0.25 (fades with Shift key)"); // [10]
   }
   if (gameoverSound) {
+    // [9]
     gameoverSound.volume = 0.35;
-    console.log("   Gameover Sound Volume: 0.35");
+    console.log("   Gameover Sound Volume: 0.35"); // [9]
   }
   if (winSound) {
+    // [7]
     winSound.volume = 0.5;
-    console.log("   Win Sound Volume: 0.5");
+    console.log("   Win Sound Volume: 0.5"); // [7]
   }
   if (menuSound) {
+    // [5]
     menuSound.volume = 0.5;
-    console.log("   Menu Sound Volume: 0.5");
+    console.log("   Menu Sound Volume: 0.5"); // [5]
   }
   if (carIdleSound) {
+    // [2]
     carIdleSound.loop = true;
     carIdleSound.volume = 0;
     carIdleSound.play().catch(function (error) {
       console.log("Car idle sound autoplay blocked:", error);
     });
-    console.log("   Car Idle Sound: Playing (volume controlled by speed)");
+    console.log("   Car Idle Sound: Playing (volume controlled by speed)"); // [2]
   }
   if (checkpointSound) {
+    // [8]
     checkpointSound.volume = 0.6;
-    console.log("   Checkpoint Sound Volume: 0.6");
+    console.log("   Checkpoint Sound Volume: 0.6"); // [8]
   }
 
   // Attach menu sound to all buttons (UI elements only)
@@ -1236,7 +1244,7 @@ function attachMenuSoundToButtons() {
   });
 
   console.log(
-    "🔘 Menu sound (buttonclick.mp3) attached to " +
+    "🔘 Menu sound (buttonclick.mp3) attached to " + // [5]
       menuButtons.length +
       " specific UI buttons",
   );
