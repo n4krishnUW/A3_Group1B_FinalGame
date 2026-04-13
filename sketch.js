@@ -369,6 +369,11 @@ function showNextTutorialStep() {
     }, step.duration || 3000);
   } else if (step.type === "checkpoint-goal") {
     // Checkpoint goal step — wait for player to reach checkpoint
+    // Activate the checkpoint's dot
+    var dot = document.getElementById("dot-" + step.checkpointIndex);
+    if (dot) {
+      dot.classList.add("active");
+    }
     // Delay timer will be initialized on first frame update in updateMarkers()
     // The checkCheckpoints() function will advance this when reached
   }
@@ -1642,6 +1647,13 @@ function collectCheckpointTutorial(checkpointIndex) {
     flash.classList.remove("flash");
   }, 300);
 
+  // Mark collected checkpoint's dot as done
+  var dot = document.getElementById("dot-" + checkpointIndex);
+  if (dot) {
+    dot.classList.remove("active");
+    dot.classList.add("done");
+  }
+
   // Advance to next tutorial step after the flash
   setTimeout(function () {
     if (tutorialActive && !tutorialCompleted) {
@@ -1658,6 +1670,16 @@ function collectCheckpointTutorial(checkpointIndex) {
       setTimeout(function () {
         if (tutorialActive && !tutorialCompleted) {
           showNextTutorialStep();
+
+          // Activate the next checkpoint-goal's dot if applicable
+          var tutorialFlow = TUTORIAL_LEVEL.tutorialFlow;
+          var currentStep = tutorialFlow[tutorialStepIndex];
+          if (currentStep && currentStep.type === "checkpoint-goal") {
+            var nextDot = document.getElementById(
+              "dot-" + currentStep.checkpointIndex,
+            );
+            if (nextDot) nextDot.classList.add("active");
+          }
         }
       }, 350);
     }

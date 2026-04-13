@@ -37,14 +37,6 @@ const TUTORIAL_LEVEL = {
       color: 0x4ecdc4,
       emoji: "🌲",
     },
-    {
-      x: 45,
-      z: 85,
-      r: 12,
-      label: "Waterfront",
-      color: 0xff6b9d,
-      emoji: "🏖️",
-    },
   ],
   tutorialFlow: [
     {
